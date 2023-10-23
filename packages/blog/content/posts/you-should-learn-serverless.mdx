@@ -1,0 +1,84 @@
+---
+title: Why you should learn serverless
+description: Stop throwing your code over the fence for other people to deploy and run.
+date: "2023-10-20"
+---
+
+Are you a front-end developer? Can you write perfect React components, styled beautifully with Tailwind, but then get blocked when it comes to actually putting your beautiful creation live behind that awesome domain you just spent $20 on? Or maybe you're a backend engineer and you're comfortable working with Node and Express, but while you're building out your API there's that nagging thought in the back of your head - _"I'm gonna have to talk to Dave about deploying this thing"_. There is an enormous gap between `localhost:3000` and having your code running somewhere in the cloud, serving real life users!
+
+If any of that sounds familiar then fear not - that was me once. I hated the fact that I was reliant on other engineers to _get my shit live_. In this series of posts I'm going to give you a way forward and by the end of this article you'll understand why Serverless is the path to liberation from DevOps Dave.
+
+#### Some disclaimers
+
+Serverless is a big topic so, at times, I'll be oversimplifying or omitting details along the way in an effort to build a clearer high-level understanding of what serverless is. I am also predominantly talking about serverless as it pertains to AWS Lambda specifically and functions-as-a-service (FaaS) in general, but it's important to note that the word "serverless" is frequently used to refer to other technologies that also allow us to essentially throw our servers away. AWS SQS, managed database solutions such as PlanetScale, and managed container orchestration tools like Fargate are often referred to as Serverless solutions too.
+
+The only other disclaimer is that I'm an AWS fanboy so I'll be referring to AWS Lambda for the most part. However, these days there are plenty of vendors that provide FaaS such as Vercel, Cloudflare, Fly.io, GCP and Azure. All of them have different features and tradeoffs but in general they solve similar problems and come with similar challenges.
+
+Actually, one last one... I mentioned Fargate before which brings me to the subject of containers and tools like Docker. Containers have been extremely influential in the evolution of serverless technology but I'll mostly skip over them as they're not critical to understanding serverless.
+
+## My introduction to serverless
+
+I remember starting a job in 2015 after a 4 year hiatus from writing code. When I left it was all jQuery and Webforms, but when I started my new job in Johannesburg the team I joined was using knockoutJS and Twitter Bootstrap.  I'm embarrassed to admit it but for the first week or two I would frequently conflate the two, when in fact they couldn't have been any more different. I look back now and cringe.
+
+Then when I started working at Trint as a full stack developer back in 2018 I was more or less in the same boat. I was hearing new words all the time and I had no fucking idea what they meant. One word that would crop up time and time again was "lambda". I would stand there in meetings and nod along as if I didn't feel the world burning around me. Unlike Bootstrap and Knockout, lambda was somehow entirely mysterious. I was too afraid to raise my hand and ask the question "Can someone show me how to lambda?"
+
+> _A note on being too afraid to ask questions.. There is a longer story to be told here. Being too scared to ask questions has set me back more in my career than any other thing. I repeat, not asking questions held me back more than ANY other thing! By not asking questions I was not only setting myself back but I was also setting the team back!_
+
+Another word that I seemed to hear fairly regularly, often alongside the word "lambda", was "Serverless". What is this thing Lambda I kept hearing about? As a frontend engineer working in React land, I was able to shrug off this knowledge gap for a while, after all, I was far away from the code that ran servers. But at Trint we were encouraged to explore the stack from top to bottom, so I couldn't avoid the backend forever. I wanted to get stuck in, but impostor syndrome, fear that I wouldn't get it or that I'd seriously break something got in the way of me getting involved. I regret dragging my feet, because once I got involved - once it clicked - serverless changed my life forever.
+
+## So then, what is serverless?
+
+Serverless is a lot of things. You'd probably get 100 different answers from 100 different developers. That said, this article aims to focus on the two main benefits I see associated with serverless that aren't always spoken about - probably because these days they're simply taken for granted! Before I talk about what serverless is, lets quickly answer the question "why serverless?" then I'll talk about how. Essentially serverless boils down to two things:
+
+1. Reducing the costs associated with maintaining applications running on long lived servers
+2. Empowering developers and enabling agility in engineering teams
+
+These two things are at the heart of the serverless movement. Specifically I'm more interested in point 2, because that is what I'm passionate about. I love building things quickly and I love seeing things manifest right before my eyes. Serverless does this - it empowers individuals and teams to quickly build, test, gather feedback and iterate.
+
+Before going into learning our first bit of serverless, let's set the scene and quickly talk about the evolution towards serverless cloud computing.
+
+#### The before-fore times
+
+In times of old, before "the cloud" businesses had to own the computers their code would run on - actual physical infrastructure that could be seen and touched and even heard (imagine the sound of hundreds of spinning fans). These computers would have to be housed in air conditioned rooms to prevent overheating. Servers would host websites, run business critical applications and perform all manner of tasks. Servers often are given unique names and be treated delicately, like the unicorns they were. In the first company I worked for, all of our servers were named after native South African birds. _Penguin_ would frequently require a restart. I can't remember why, but it did! You can imagine how expensive maintaining this infrastructure was. There are:
+
+- Rental costs: Requiring physical servers meant you had to rent a space that could actually house your business critical infrastructure.
+- Energy costs: Running computers 24/7 and keeping them cool so that they don't overheat costs a shit load of money.
+- Expertise: I don't know how to replace a blown fuse, or add additional storage, do you? What about security upgrades? All of this requires a professional with specialised knowledge to do the work. Keeping that kind of expertise close at hand costs businesses big bucks!
+- Down time: Every time your servers need to be upgraded or repaired, you have to take them offline. That costs the business money in lost revenue.
+- Scaling: What if I have a burst of increased traffic that I haven't prepared for. If you don't always provision at least as much compute as you need to meet peak demand then you'll run around turning on and off servers to handle the fluctuating load!
+- Not to mention the upfront cost of the servers themselves!
+
+Suffice it to say, shit was expensive when you had to host your own applications on on-premises servers. Maintaining your infrastructure required a team of people and was full of toil - effort that does not contribute to the improvement of the overall business. The time and money spent on routine maintenance work meant less time to spend on innovation within your core product or service.
+
+#### Enter cloud computing
+
+I can't even begin to describe how insanely revolutionary the advent of cloud computing was, not just for the tech industry, but for businesses of all kinds. All of a sudden you could start paying someone else to handle all of the problems I described above for you! AWS was the first of the so-called "cloud providers". They allowed people to "rent" compute and only pay for what they used. In other words, I could be sitting in one part of the world and run my website on a computer that was hosted in one of Amazon's data centres in an entirely different part of the world. They keep the computers running, they'd handle downtime, they'd hire the expertise required to keep things running smoothly for you and your customers. And if I didn't need the server anymore, all I had to do was simply shut it down! It really was a revolution. We could now click a few buttons in a web UI, upload our application code and we'd be live. Incredible! This was and excellent start but it still wasn't a perfect picture:
+
+- I was still paying for compute that I wasn't using. Imagine I only needed to run a cron job - a recurring piece of work that is executed on a schedule. Let’s say that this cron job only needs to run, say, 5 or 6 times a day and each execution takes 10 minutes. I'd still be paying for that whole computer to be up and running for the full 24 hours of the day even though I'm only using it for 1 hour in total every day. Sure, this is a slightly over simplified but it nicely illustrates the problem businesses were facing. Sure there were some toggles you could use to rent cheaper machines with lower specs, but even so, you were still essentially renting too much computer! Also, what if those cron jobs were CPU intensive and required top of the range processors? Then you’d still have to rent a well spec'd, and therefore well expensive, machine!
+
+- There was still a need to hire specialised expertise in house. Because you were still renting computers you'd still need to hire someone like a system administrator that could manage your servers in the cloud, do network administration, handle some kinds of software upgrades, monitor availability and performance, handle outages and configure auto-scaling!
+
+So even though the introduction of rentable cloud computers was a vast improvement over the days of air conditioned servers rooms and blown fuses, we were still experiencing higher than necessary costs and busy work that took up unnecessary time, required specialised expertise and detracted from our ability innovative in areas central to the core business offering.
+
+#### And then Serverless was born
+
+Imagine that we said, okay what if there were no more servers at all. Surely that makes no sense? Where would our code run? Okay, so there _are_ actually servers, we’re not running code in a parallel dimension, buuut, AWS abstracted the servers away you don't have to think about them. Imagine, we could just deploy a function. I mean that. Just a function. What if we could simply do this:
+
+```js
+export async function handler(event) {
+  // run some business critical logic
+  return { statusCode: 200, body: JSON.stringify(result) };
+}
+```
+
+And deploy that, just that. We could then put our function at the end of some HTTP endpoint and trigger it whenever a request comes in. The function gets called with some payload passed to it, executes from top to tail, and then vanishes without a trace. Oh, it took 1 second to run? Cool. You only pay for that 1 second of execution time!
+
+No longer do I need to employ a "Dave" to deploy and wrangle servers! I can do this all by myself if I want to, or more accurately - I don't have to do any of it! The serverless computing model allows AWS to do all that for me! I no longer need to learn about networking or auto-scaling in order to build something that can serve hundreds of thousands of users and then turn itself off completely when nobody is using it. The ability to scale out from zero to thousands almost instantaneously, is one of the major selling points of serverless.
+
+Another benefit of these little functions is that they run inside their own little "computer" or virtual machine which lives only for the duration of the execution. It's like the computer turns on, runs your function and then turns off again. That means these little guys have a very tiny blast radius. If something goes wrong, you're not going to bring down a whole server (what is even a server at this point? #amiright) and the blast radius is limited to just that function invocation.
+
+Software engineers working on SaaS often care deeply about the ability to run experiments - we want to be able to form a hypothesis, write some code, and see if our code achieves what we set out to achieve. We should be able to close this feedback loop quickly which necessitates minimal dependencies on external expertise. Again, this is what actually makes serverless so powerful! Not only does serverless allow you to tighten up the feedback loop by being quick and easy to deploy, but because it's pay-per-use, your experiments don't have to cost you money while they sit idle on some EC2 instance somewhere during development. If your new feature doesn't gain traction it won't break the bank because you were paying for idle compute the whole time. In my opinion, if you're building a startup, you need a pretty good excuse not to go serverless.
+
+## Summary
+
+Serverless is an evolution in cloud computing that has democratised access cloud compute by making it trivial to deploy and scale a backend.  Serverless offerings are usually associated with pay-per-use pricing models which makes serverless a great choice for things like the humble side project all the way to large scale enterprise systems. Serverless enables experimentation and allows software engineers to spend their days writing code that solves actual business problems. Developers shouldn't have to care about where and how their code runs - only that it addresses a business need. Serverless allows developers to focus on the one thing that matters: delivering value to customers.
