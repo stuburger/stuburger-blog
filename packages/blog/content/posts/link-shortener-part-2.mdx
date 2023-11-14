@@ -1,0 +1,37 @@
+---
+title: Building a simple serverless link shortener with SST - Part 2
+description: An introduction to SST and AWS CDK
+date: 2023-11-07
+---
+> *This series is a work in progress.*
+
+In this post I want to start to talk about the technology that has become my secret weapon for deploying full-stack apps to AWS. It is called SST, and it is what we'll be using to build our link shortening service. SST enables tracer bullet development, fast feedback loops and an incredibly sexy developer experience. What I like most about SST is that it makes Infrastructure as Code (IaC) accessible to beginner programmers while remaining insanely powerful for managing your infrastructure as you scale. I would highly recommend using SST if you are interested in building full-stack applications on AWS, but particularly if you are beginning your journey into the world of AWS and Infrastructure as Code.
+
+## What is SST?
+
+SST stands for Serverless Stack Toolkit. SST is a framework that makes it easy to build modern full-stack applications on AWS. It simplifies the process of developing, deploying, and managing serverless applications by providing higher-level abstractions over existing CDK constructs as well as by providing developer-friendly tooling. It abstracts away the complexity of configuring AWS resources and infrastructure, allowing developers to focus more of their time on writing code that delivers value to their customers.
+
+SST helps developers build and deploy serverless applications written in a number of popular programming languages, but the SST framework itself is written in Typescript and really delivers the most value to developers who are building applications using JavaScript or TypeScript all the way up and down the stack. 
+
+Some key features and benefits of SST:
+
+- Beginner friendly: Perhaps the thing I love most about SST is its gentle learning curve. If you've never written IaC before, SST is a good place to start. Provisioning infrastructure has never been easier. It's high level constructs provide sensible defaults which reduces the amount of toil spent on configuration and plumbing.
+
+- Local Development: This is one of my favourite features of SST. SST provides something called Live Lambda Development, allowing developers to test their serverless applications locally before deploying them to AWS. This helps in faster development and debugging of applications. Local development has traditionally been a pain point when building serverless applications and SST has really tackled this problem head on and has eased many if not all of these pain points!
+  
+- Ephemeral Environments: This is one of the areas where SST really shines. SST allows developers to standup and tear down stacks at will. Developers collaborating on even large teams can stand up entire environments for testing purposes. You can deploy an app comprised of any number of DynamoDB tables, frontends, SQS queues, S3 buckets, CDNs, etc to any number of environments using `sst deploy`. For instance your CI might stand up an environment when a PR is created that you can run your E2E tests against and then your CI can simply tear it down again automatically using `sst remove` once the PR has been merged!
+
+- Abstraction of AWS Resources: SST abstracts underlying AWS resources, making it easier for developers to create and manage AWS infrastructure components like API Gateway, Lambda functions, DynamoDB tables, and more, without having to deal with the low-level details of AWS services.
+  
+- Resource Binding: Access the resources in your app in a secure and typesafe way. Another amazing benefit of SST is the ability to connect your infrastructure to your application code in a typesafe way. Values like table names, SSM parameters and more can be accessed seemingly by magic using regular `import` statements. It's really quite incredible. SST accomplishes this by way of a small code generation step.
+
+- Infrastructure as Code (IaC): Of course SST also provides all the usual benefits that come with using other IaC tools such as Terraform or AWS CDK such as reusable components, auditability, repeatable deployments, and more!
+
+Alright, that's enough of the high level stuff. Next up we're gonna start building out our link shortener and start putting some flesh out some of these concepts.
+
+## Wrapping up
+
+SST blurs the lines between Infrastructure as Code and backend framework. It has made me feel comically productive and has been the most empowering tool I've used as a software engineer in recent memory. SST has in some sense trivialised full-stack software development by providing a gateway into the world of DevOps, infrastructure and software architecture. SST helps us get us to where we're going by tightening up the development feedback loop and allowing for accessible experimentation. Furthermore, its focus on the development of serverless applications makes it an attractive choice for hobbyists building pet projects as well as for large teams of developers looking to build and scale even the most complex serverless architectures.
+
+Next we'll finally start setting up our local environments, by installing and configuring the AWS cli and scaffolding out a bare bones SST app. We'll then conduct an initial deploy and hit our endpoint using `curl`.
+

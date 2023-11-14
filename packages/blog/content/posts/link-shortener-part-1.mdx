@@ -1,0 +1,42 @@
+---
+title: Building a serverless link shortener with SST - Part 1
+description: An introduction to this tutorial series
+date: 2023-11-03
+---
+> *This series is a work in progress.*
+
+I want to keep this tutorial series super accessible and for it to be beginner friendly dive into the world of infrastructure and serverless application development using SST. That means keeping the complexity of the business domain to a minimum. So what better thing to build that a serverless link shortener?  
+
+## What is a link shortener?
+
+Link shorteners can turn a link from this: https://www.example.com/path/to/some/random/thing?utm_source=facebook&utm_medium=social&utm_campaign=link-in-bio, into this: https://supalink.co/a2x1. Link shorteners are simple tools that take a long, possibly ugly link and turns it into a nice, terse url that is easy on the eyes. 
+
+## Who is this tutorial for?
+
+This tutorial is for anyone who wants to learn more about building serverless applications on AWS. It aims to be accessible to very beginners by keeping descriptions simple. At the end of every post I will provide further reading if you are interested in delving deeper! 
+
+## What we're going to cover
+
+At the end of this series you will have a fully working link shortener service that you will deploy to your own AWS account and you will be able to it to shorten your own links before sharing them with the world. By the end of this course will be able to:
+
+- Build, test and deploy a production quality full-stack serverless application to an AWS account using SST.
+- Create a simple frontend where you can login using basic auth and see our shortened link and view their click counts.
+- Understand and explain essential infrastructure components and SST constructs needed to build a basic API. We'll cover the Function, Api, Table, and StaticSite constructs.
+- Write API tests using vitest that can be run against a test environment.
+- Create a simple CI to run tests against a test environment and deploy your app whenever you update your master branch.
+- Deploy your full-stack application to a custom domain
+
+## How do link shorteners work?
+
+When clicking on a shortened link the following things usually happen:
+
+1. An API queries a database in order to look up the original URL. The look up is typically based on a unique identifier (often using the "back-half" of the link), then
+2. A counter associated with that link is incremented allowing us to keep track of the number of times a link is clicked and finally,
+3. A 302 redirect is returned and the browser forwards the user on to the original URL. 
+
+## Link shorteners in the wild
+
+There are hundreds of link shorteners out there. [Bitly](https://bitly.com/) is perhaps the most well known example of a link shortener. Two other well known link shorteners are [shorturl](https://www.shorturl.at/) and [tinyurl](https://www.shorturl.at/). Feel free to take a look at them and have a play in order to get a feel for what we're building. There are even open source versions that you can be self hosted such as [shlink](https://shlink.io/)! 
+
+Social media apps like X (formally Twitter) shorten links atomically when you include a URL in a post. X's link shortening service is called http://t.co. Whether knowingly or not, it is quite possible that you have used link shorteners before (and almost certain that you've clicked on a shortened link). In the case of X, shortening links helps keep the number of characters in a message within the maximum limit. But more importantly, clicking on a https://t.co also gives X the ability to count how many times a link has been clicked which allows them to measure how well a link is performing.
+
