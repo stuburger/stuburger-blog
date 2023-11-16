@@ -1,11 +1,21 @@
 import Link from "next/link";
-import "./globals.css";
 import { Inter } from "next/font/google";
+import LocalFont from "next/font/local";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Analytics } from "@/components/analytics";
 import { ModeToggle } from "@/components/mode-toggle";
+import "./globals.css";
+import "./code.css";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+});
+
+const calSans = LocalFont({
+  src: "../public/fonts/CalSans-SemiBold.ttf",
+  variable: "--font-calsans",
+});
 
 export const metadata = {
   title: "Stuburger",
@@ -18,7 +28,7 @@ interface RootLayoutProps {
 
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
-    <html lang="en">
+    <html lang="en" className={[inter.variable, calSans.variable].join(" ")}>
       <body
         className={`antialiased min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-50 ${inter.className}`}
       >

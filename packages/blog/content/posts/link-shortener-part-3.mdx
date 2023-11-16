@@ -3,31 +3,34 @@ title: Getting started with SST
 description: Building a simple serverless link shortener with SST - Part 3
 date: 2023-11-08
 ---
-> *This series is a work in progress.*
+
+> _This series is a work in progress._
 
 In this section we are going to build an SST app from scratch. You'll need at least [Node.js 18](https://nodejs.org/) and [pnpm](https://pnpm.io/) installed in order to follow along. In this tutorial we are going to:
 
 - Configure AWS credentials
 - Use the SST CLI to scaffold out a new project using `create-sst`
-- Understand how SST is configured using `sst.config.ts` 
+- Understand how SST is configured using `sst.config.ts`
 - Create a simple lambda Function with some placeholder code
 - Run our SST app in development mode
 - Write and run a simple API test
 - Practice deploying an SST app to production using `sst deploy`
 - Practice tearing down an app using `sst remove`
+
 ## Configure AWS credentials
 
 > If you already have AWS credentials set up on your machine you can skip this section.
 
-Before we can do anything with SST we need to get the AWS configured. You will need to have an AWS account and you will need to configured your AWS credentials. 
+Before we can do anything with SST we need to get the AWS configured. You will need to have an AWS account and you will need to configured your AWS credentials.
 
-AWS credentials are used by SST to deploy your infrastructure and call AWS APIs. 
-- On Mac and Linux they're simply stored in a text file located in `~/.aws/credentials`. 
-- On windows they're stored in `C:\Users\USER_NAME\.aws\credentials`. 
+AWS credentials are used by SST to deploy your infrastructure and call AWS APIs.
+
+- On Mac and Linux they're simply stored in a text file located in `~/.aws/credentials`.
+- On windows they're stored in `C:\Users\USER_NAME\.aws\credentials`.
 
 The `credentials` file is super simple and looks like this:
 
-```
+```bash
 [default]
 aws_access_key_id = <YOUR_ACCESS_KEY_ID>
 aws_secret_access_key = <YOUR_SECRET_ACCESS_KEY>
@@ -54,19 +57,19 @@ pnpm i
 
 This is what we got after running `create-sst`:
 
-```
+```bash
 link-shortener
 |
 |-- node_modules/
 |-- .gitignore
 |-- package.json
-|-- sst.config.ts   # we start our journey here
+|-- sst.config.ts # we start our journey here
 |-- tsconfig.json
 ```
 
-We can see the usual suspects here:  `package.json`, `tsconfig.json` and a `.gitignore` file. But there is one newcomer that may look unfamiliar to you: `sst.config.ts`.  
+We can see the usual suspects here: `package.json`, `tsconfig.json` and a `.gitignore` file. But there is one newcomer that may look unfamiliar to you: `sst.config.ts`.
 
-So far this structure is completely flat, but as we go we'll add some depth to it as we move to a monorepo structure. 
+So far this structure is completely flat, but as we go we'll add some depth to it as we move to a monorepo structure.
 
 > SST suggests using a monorepo because it allows your app to grow in complexity while keeping organisation simple and straightforward. In fact the default `--template` automatically provides you with a monorepo structure for your project.
 
@@ -76,9 +79,9 @@ The `sst.config.ts` file is exactly what it sounds like. It provides the configu
 
 The [SST documentation](https://docs.sst.dev/configuring-sst#file-structure) has this to say about the `sst.config.ts` file:
 
-> *The `sst.config.ts` file is placed at the root of your application, typically in the top most directory in your repo.
-> 
-> While it's defined as a TypeScript file, it should **not** be treated as a subpackage in a monorepo setup. It is a root level config used for managing your entire application.*
+> \*The `sst.config.ts` file is placed at the root of your application, typically in the top most directory in your repo.
+>
+> While it's defined as a TypeScript file, it should **not** be treated as a subpackage in a monorepo setup. It is a root level config used for managing your entire application.\*
 
 This is important because it implies that (at least from the SST perspective) it is an anti-pattern to have multiple SST applications live in single code repository. Your organisation may run multiple SST applications but ideally they should live in different code repositories.
 
@@ -86,7 +89,7 @@ One reasons for this logical separation is greater cohesion of related component
 
 ## Creating our first lambda function
 
-This is where the real fun begins!  Start by opening up our link shortener in your editor of choice. Make sure you've installed dependencies using `pnpm i` if you haven't already done so. 
+This is where the real fun begins! Start by opening up our link shortener in your editor of choice. Make sure you've installed dependencies using `pnpm i` if you haven't already done so.
 
 First we are going to start by first writing the logic for our Lambda Function, then we're going to write the infrastructure that provisions our Function. Finally, we'll run `sst dev` and check that everything is working as expected!
 
@@ -101,61 +104,61 @@ import { ApiHandler } from "sst/node/api";
 
 export const handler = ApiHandler(async (_evt) => {
   return {
-	  statusCode: 302,
-	  headers: { Location: "https://www.google.com" }
+    statusCode: 302,
+    headers: { Location: "https://www.google.com" },
   };
 });
 ```
 
-The `handler` function simply returns a hard coded 302 redirect to google.com. The higher order [handler](https://docs.sst.dev/clients/api#handlers) function called `ApiHandler` allows us to make use of the many [hooks](https://docs.sst.dev/clients/api#hooks) available in the `sst/node/api` module.  Don't worry too much about how hooks work, but the fact that they use a similar convention to React's hooks is no mistake and is intended to make them feel familiar and approachable. (that said, the do not have the same restrictions imposed on React hooks). SST's hooks are simply convenience functions that allow us to "hook" into the event object using a nice clean api. 
+The `handler` function simply returns a hard coded 302 redirect to google.com. The higher order [handler](https://docs.sst.dev/clients/api#handlers) function called `ApiHandler` allows us to make use of the many [hooks](https://docs.sst.dev/clients/api#hooks) available in the `sst/node/api` module. Don't worry too much about how hooks work, but the fact that they use a similar convention to React's hooks is no mistake and is intended to make them feel familiar and approachable. (that said, the do not have the same restrictions imposed on React hooks). SST's hooks are simply convenience functions that allow us to "hook" into the event object using a nice clean api.
 
 ### Infrastructure code
 
 Next, open up the `sst.config.ts` file we were talking about earlier. Its time to write our first bit of Infrastructure as Code. In the `stacks` function we're going to add the following code
 
-```ts
-// ./sst.config.ts
+```ts:sst.config.ts
 import { Function } from "sst/constructs";
 
-...
 stacks(app) {
-	app.stack(({ stack }) => {
-	    const handler = new Function(stack, "Function", {
-		  handler: "./redirect-handler.handler",
-		  url: true,
-	    });
-	  
-		new Config.Parameter(stack, "FunctionUrl", {
-			value: handler.url!,
-		});
-	
-		stack.addOutputs({
-			FunctionUrl: handler.url,
-		});
-	});
+  app.stack(({ stack }) => {
+      const handler = new Function(stack, "Function", {
+        handler: "./redirect-handler.handler",
+        url: true,
+      });
+
+      new Config.Parameter(stack, "FunctionUrl", {
+        value: handler.url!,
+      });
+
+      stack.addOutputs({
+        FunctionUrl: handler.url,
+      });
+  });
 }
 ```
 
 The `Function` class is an SST construct that represents an AWS Lambda function. It also contains much of the magic that makes live lambda development possible. Functions, like all constructs take 3 parameters:
+
 1. Scope - the stack this Function belongs to
 2. Id - a unique identifier for this Function (only within the same scope)
 3. Props - configuration for the Function
 
 Props are most interesting to us right now. We specify two props:
-1. `handler` - this essentially the physical location on disk where your lambda handler code lives! It is a relative path in the format `./path/to/file.function` where `function` is the name of your exported lambda function handler. Notice we haven't included the `.ts` extension after the filename. In our case the file is called `redirect-handler.ts` and the function that we've exported is, rather unimaginatively, called `handler`. 
+
+1. `handler` - this essentially the physical location on disk where your lambda handler code lives! It is a relative path in the format `./path/to/file.function` where `function` is the name of your exported lambda function handler. Notice we haven't included the `.ts` extension after the filename. In our case the file is called `redirect-handler.ts` and the function that we've exported is, rather unimaginatively, called `handler`.
 2. `url` - gives us a simple way to invoke our lambda function using a function url. We will remove this later and let ApiGateway route traffic to our function instead, but for now this is all we need to get started!
 
-Next we instantiate a new `Config.Parameter`. It takes arguments in the same fashion as the `Function` construct (Scope, Id and Props). In SST, a `Config.Parameter` *provisions* a parameter in AWS Parameter Store. Parameter Store is simply a key/value store where we store configuration that we have access to in lambda functions or in our tests by importing from the `sst/node/config` module. We'll see how to do this in just a moment!
+Next we instantiate a new `Config.Parameter`. It takes arguments in the same fashion as the `Function` construct (Scope, Id and Props). In SST, a `Config.Parameter` _provisions_ a parameter in AWS Parameter Store. Parameter Store is simply a key/value store where we store configuration that we have access to in lambda functions or in our tests by importing from the `sst/node/config` module. We'll see how to do this in just a moment!
 
 > **Definition**: In the world of IT infrastructure, the word "**provision**" refers to the process of creating and configuring IT resources.
 
 Finally there is the line `stack.addOutputs({ FunctionUrl: handler.url })` which defines an output for the CloudFormation stack.
 
-In AWS CloudFormation, outputs allow you to expose certain values or resources from your stack, making them accessible or usable by other stacks or external systems. These outputs could be things like endpoint URLs, resource IDs, or any other information you want to make available. For now we'll just think of this as good hygiene that we want to build some muscle memory around. 
+In AWS CloudFormation, outputs allow you to expose certain values or resources from your stack, making them accessible or usable by other stacks or external systems. These outputs could be things like endpoint URLs, resource IDs, or any other information you want to make available. For now we'll just think of this as good hygiene that we want to build some muscle memory around.
 
 You should be left with the following project structure:
 
-```
+```bash
 link-shortener
 |
 |-- node_modules/
@@ -168,7 +171,7 @@ link-shortener
 
 ## Debugging using Live Lambda Development
 
-Remember when I said that local development was one of my favourite features of SST? Lets see why this is so cool. We're going to use `sst dev` to start up the  "[Live Lambda Dev](https://docs.sst.dev/live-lambda-development)" environment and invoke our redirect handler locally!
+Remember when I said that local development was one of my favourite features of SST? Lets see why this is so cool. We're going to use `sst dev` to start up the "[Live Lambda Dev](https://docs.sst.dev/live-lambda-development)" environment and invoke our redirect handler locally!
 
 ```bash
 pnpm run dev --stage dev
@@ -180,20 +183,21 @@ This will take a few seconds to deploy. It does a couple of [interesting things]
 2. Setups up the [Live Lambda Dev environment](https://docs.sst.dev/live-lambda-development).
 3. Deploys your app to AWS.
 4. Runs a local server to:
-    1. Proxy Lambda requests to your local machine
-    2. Power the [SST Console](https://docs.sst.dev/console)
+   1. Proxy Lambda requests to your local machine
+   2. Power the [SST Console](https://docs.sst.dev/console)
 
 Once complete your terminal should show you something like this:
 
 ![[Pasted image 20231113155726.png]]
 
 There are two links in the output to take note of:
-- The first link takes you to the SST [Console](https://docs.sst.dev/console), click on it and sign in with your email address. The SST Console is a web based dashboard to manage your SST apps. The console allows you to invoke functions, view logs, and manage all your apps with your team. Have a play around and read the SST Console [documentation](https://docs.sst.dev/console) on the SST website. 
+
+- The first link takes you to the SST [Console](https://docs.sst.dev/console), click on it and sign in with your email address. The SST Console is a web based dashboard to manage your SST apps. The console allows you to invoke functions, view logs, and manage all your apps with your team. Have a play around and read the SST Console [documentation](https://docs.sst.dev/console) on the SST website.
 - The second link is the FunctionUrl that we added to the stack outputs and is the URL that exposes our lambda function to the world. Copy the URL onto your clipboard, open a new browser tab, paste the link in the address bar and hit enter. You should get **redirected** to google.com! 🎉
 
-Notice that after running the command `sst dev` you now have a `.sst` directory in your file explorer. SST creates this automatically whenever you run `sst dev`, `sst build` or `sst deploy`. It contains build assets and auto-generated code including the Typescript types for our apps resources. 
+Notice that after running the command `sst dev` you now have a `.sst` directory in your file explorer. SST creates this automatically whenever you run `sst dev`, `sst build` or `sst deploy`. It contains build assets and auto-generated code including the Typescript types for our apps resources.
 
-```
+```bash
 link-shortener
 |
 |-- .sst                # added (excluded in .gitignore)
@@ -202,25 +206,27 @@ link-shortener
 |-- api.test.ts
 |-- package.json
 |-- redirect-handler.ts
-|-- sst.config.ts       
+|-- sst.config.ts
 |-- tsconfig.json
 ```
+
 ## Writing API tests for our lambda function
 
-SST recommends using Domain Driven Design for testing domain code. This involves testing our core business logic by interacting directly with the entities we define in our application code. However, testing APIs are often more useful than directly testing domain code. Testing an app from the perspective of a user is the only sure fire way to know that an API is working as expected. API tests can be used as a formal specification for public facing contracts and perhaps most pragmatically, they treat implementation details as a black box. 
+SST recommends using Domain Driven Design for testing domain code. This involves testing our core business logic by interacting directly with the entities we define in our application code. However, testing APIs are often more useful than directly testing domain code. Testing an app from the perspective of a user is the only sure fire way to know that an API is working as expected. API tests can be used as a formal specification for public facing contracts and perhaps most pragmatically, they treat implementation details as a black box.
 
-Our app is currently devoid of almost any complex domain code. It simply returns a hard coded response, after all! That said, that is more that than enough working code for us to sensibly be able to write a test. So lets do just that. 
+Our app is currently devoid of almost any complex domain code. It simply returns a hard coded response, after all! That said, that is more that than enough working code for us to sensibly be able to write a test. So lets do just that.
+
 ### Install Vitest
 
 Lets start by install our testing framework, [Vitest](https://vitest.dev/):
 
-```
+```bash
 $ pnpm add -D vitest
 ```
 
 Next, create a file to contain our API tests called `api.test.ts`. Your link-shortener directory should look like this:
 
-```
+```bash
 link-shortener
 |
 |-- .sst
@@ -229,9 +235,10 @@ link-shortener
 |-- api.test.ts         # added
 |-- package.json
 |-- redirect-handler.ts
-|-- sst.config.ts       
+|-- sst.config.ts
 |-- tsconfig.json
 ```
+
 ### Add an NPM test script
 
 Open up package.json and add the following `test` script that we can use to conveniently run our test suite.
@@ -243,6 +250,7 @@ Open up package.json and add the following `test` script that we can use to conv
 ```
 
 The `sst bind` cli command binds your app's resources to the given  command and makes them available inside the your test. Now can run `pnpm run test --stage dev` in your terminal window and Vitest will run any `*.test.ts` files it finds in your code.
+
 ### Writing a simple API test
 
 But we don't have any tests yet, so lets write one...
@@ -252,15 +260,14 @@ import { test, expect } from "vitest";
 import { Config } from "sst/node/config";
 
 test("returns a 302 redirect with location header set", async () => {
-	const response = await fetch(Config.FunctionUrl, {
-		method: "GET",
-		redirect: "manual", // disable the default behaviour which is to "follow"
-	});
-	
-	expect(response.status).toEqual(302);
-	expect(response.headers.get("Location")).toEqual("https://www.google.com");
-});
+  const response = await fetch(Config.FunctionUrl, {
+    method: "GET",
+    redirect: "manual", // disable the default behaviour which is to "follow"
+  });
 
+  expect(response.status).toEqual(302);
+  expect(response.headers.get("Location")).toEqual("https://www.google.com");
+});
 ```
 
 You might have noticed that we're getting a typescript error stating that:
@@ -271,13 +278,13 @@ Property 'FunctionUrl' does not exist on type 'ConfigTypes & ParameterTypes & Se
 
 We see this error because Typescript doesn't know where to look for our apps resources yet. [To get the full benefits of typesafety](https://docs.sst.dev/resource-binding#typesafety-1) we first need to create a file called `sst-env.d.ts` and then paste in the following line of code:
 
-```ts
+```ts:sst-env.d.ts
 /// <reference path="./.sst/types/index.ts" />
 ```
 
 Notice the red squiggly line in your test has disappeared. Haza! Now, let's quickly do one last sanity check of our directory structure again:
 
-```
+```bash
 link-shortener
 |
 |-- .sst/
@@ -287,32 +294,33 @@ link-shortener
 |-- package.json
 |-- redirect-handler.ts
 |-- sst-env.d.ts        # added
-|-- sst.config.ts       
+|-- sst.config.ts
 |-- tsconfig.json
 ```
 
 ### Running our test
 
-With everything in place we can now run our test! 
+With everything in place we can now run our test!
 
 ```bash
 pnpm run test --stage dev
 ```
 
-And we should see that it is passing! 
+And we should see that it is passing!
 
 ![[Pasted image 20231113155925.png]]
 
-A *crucial* point to emphasise is that while we have deployed real resources to AWS, the application logic - as thin as it is - is actually running locally on your computer! But it is being invoked remotely! 
+A _crucial_ point to emphasise is that while we have deployed real resources to AWS, the application logic - as thin as it is - is actually running locally on your computer! But it is being invoked remotely!
 
 As we follow this tutorial and add complexity to our link shortener, our goal will be to keep this test passing!
 
 > Troubleshooting tip: if you get a timeout error in your test then its possible that SST Live Lambda isn't running anymore. Start it up again in another terminal window using `pnpm run dev --stage dev`
+
 ## Deploying to production
 
 With our tests passing we feel confident enough to deploy our bare bones link shortener app to production. Let's do that now!
 
-```
+```bash
 npx sst deploy --stage prod
 ```
 
@@ -326,7 +334,7 @@ There you have it! We've successfully deployed our link shortener app to product
 
 As a final exercise we want to briefly practice removing or "destroying" the infrastructure we've provisioned in this exercise. To do this we use the `sst remove` command followed by the `stage` we're removing:
 
-```
+```bash
 npx sst remove --stage prod
 ```
 
@@ -336,7 +344,7 @@ This last command will remove the Function, Parameter and the CloudFormation sta
 
 ## Summary
 
-In this section we covered quite a lot.  You learned how to
+In this section we covered quite a lot. You learned how to
 
 - Use the SST CLI to scaffold out a new SST app using `create-sst`
 - Learned about the role of `sst.config.ts` file and the difference between application code and infrastructure code.
@@ -347,18 +355,17 @@ In this section we covered quite a lot.  You learned how to
 - Tearing down an app using `sst remove`
 
 Next up there is some homework help solidify these concepts. The solution can be found in the homework-1 branch if you get stuck.
+
 ## Homework
 
 Your homework assignment is to add some flexibility to our lambda function by removing the hard coded redirect using some of the concepts you've just learned.
 
-1. Use another `Parameter` called `RedirectUrl` to store a the URL that you want to redirect requests to. Instead of hardcoding the URL in the lambda function, we're hardcoding it in the infrastructure code.  This time, use the value `"https://example.com"`.
+1. Use another `Parameter` called `RedirectUrl` to store a the URL that you want to redirect requests to. Instead of hardcoding the URL in the lambda function, we're hardcoding it in the infrastructure code. This time, use the value `"https://example.com"`.
 2. Import the Config into your redirect handler function and replace the hardcoded `https://google.com` with the `RedirectUrl`.
-   
+
    > Hint: you'll have to use [Resource Binding](https://docs.sst.dev/resource-binding#binding-other-resources) with the `bind` prop on your `Function` in order access the `RedirectUrl` in your lambda function.
-   
-3. Run your application locally using the `sst dev` command again (remember to include the `--stage`)  
+
+3. Run your application locally using the `sst dev` command again (remember to include the `--stage`)
 4. Update your test so it keeps passing using the new RedirectURL. Don't use any hardcoded strings in your tests!
 5. Deploy your link shortener app to prod and confirm its working by navigating to the `FunctionUrl` and confirming you get redirected to `example.com` in your browser.
-6. Bonus: Another way to confirm that prod is working as expected is by running your test against the prod environment.  How would we do that?
-
-
+6. Bonus: Another way to confirm that prod is working as expected is by running your test against the prod environment. How would we do that?

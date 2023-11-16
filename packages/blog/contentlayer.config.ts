@@ -1,16 +1,29 @@
-import { defineDocumentType, makeSource } from "contentlayer/source-files"
+import {
+  ComputedFields,
+  defineDocumentType,
+  makeSource,
+} from "contentlayer/source-files";
+import remarkGfm from "remark-gfm";
+import rehypeSlug from "rehype-slug";
+import rehypeAutolinkHeadings from "rehype-autolink-headings";
+import rehypeCodeTitles from "rehype-code-titles";
+import rehypePrism from "rehype-prism-plus";
+import { rehypeAccessibleEmojis } from "rehype-accessible-emojis";
 
-/** @type {import('contentlayer/source-files').ComputedFields} */
-const computedFields = {
+const computedFields: ComputedFields = {
   slug: {
     type: "string",
     resolve: (doc) => `/${doc._raw.flattenedPath}`,
   },
+  // readingTime: {
+  //   type: "json",
+  //   resolve: (doc) => readingTime(doc.body.raw),
+  // },
   slugAsParams: {
     type: "string",
     resolve: (doc) => doc._raw.flattenedPath.split("/").slice(1).join("/"),
   },
-}
+};
 
 export const Page = defineDocumentType(() => ({
   name: "Page",
@@ -26,7 +39,7 @@ export const Page = defineDocumentType(() => ({
     },
   },
   computedFields,
-}))
+}));
 
 export const Post = defineDocumentType(() => ({
   name: "Post",
@@ -46,9 +59,20 @@ export const Post = defineDocumentType(() => ({
     },
   },
   computedFields,
-}))
+}));
 
 export default makeSource({
   contentDirPath: "./content",
   documentTypes: [Post, Page],
-})
+  mdx: {
+    remarkPlugins: [remarkGfm],
+    rehypePlugins: [
+      rehypeSlug,
+      rehypeCodeTitles,
+      // @ts-expect-error
+      rehypePrism,
+      rehypeAutolinkHeadings,
+      rehypeAccessibleEmojis,
+    ],
+  },
+});
