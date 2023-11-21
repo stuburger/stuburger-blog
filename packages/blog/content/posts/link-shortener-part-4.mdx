@@ -1,0 +1,450 @@
+---
+title: Adding a DynamoDB table to an SST app
+description: Building a simple serverless link shortener with SST - Part 4
+date: 2023-11-15
+---
+
+> _This series is a work in progress._
+
+So far we've created a lambda function that simply returns a hard coded value. Your homework was to use a new `Parameter` to store the RedirectToUrl in AWS Parameter Store and update our test to make sure it continues to pass.
+
+> If you had trouble with the homework, take a look at the `module1` branch for the solution.
+
+Our hardcoded `RedirectToURL` isn't particularly good use of a "Parameter". While it does allow us to configure our functions via SSM, it would be much better to store these URLs inside a real database. `Parameters` aren't really a good fit for this use case. They're generally used for configuration for the app itself, not as a place to store what is essentially going to be a user's data! For that we need a database. We're going to be using DynamoDB for our database. Almost any database would do but [DynamoDB](https://docs.aws.amazon.com/dynamodb/?pg=dynamodbt&sec=hs) is a great choice for us because SST provides excellent out-of-the-box support for DynamoDB by way of their `Table` construct. We can use this Table construct to provision a DynamoDB `Table` and `bind` it to our `Function` construct so that we can read and write to the database from our application code.
+
+## Learning goals
+
+In this section you are going to:
+
+- Provision a DynamoDB using the SST `Table` construct and bind it to your `redirect-handler` `Function`
+- Update our existing API tests so that we seeds our database before tests are run and is cleaned up any data left behind after a test is finished.
+- Update our redirect-hander so that it reads from our database and handles bad requests and not found cases.
+- You will API test passing and write some new cases for the Bad Request and Not Found cases.
+- In the homework section we'll take the training wheels off and give you the opportunity to use your new knowledge to create `Function` that can be used to shorten links! It goes without saying that you'd want some tests for the link shortener lambda function!
+
+## Provisioning a DynamoDB Table
+
+The first thing we neeed to do is actually _provision_ the `Table` that we're going to be using to store our links. Amend your `sst.config.ts` file so that it looks like this:
+
+```ts {1-3,18-22, 27, 31} showLineNumbers
+import { SSTConfig } from "sst";
+import { Config, Function, Table } from "sst/constructs";
+import { RemovalPolicy } from "aws-cdk-lib";
+
+export default {
+  config(_input) {
+    return {
+      name: "link-shortener",
+      region: "us-east-1",
+    };
+  },
+  stacks(app) {
+    app.stack(({ stack }) => {
+      const redirectToUrl = new Config.Parameter(stack, "RedirectUrl", {
+        value: "https://www.example.com/",
+      });
+
+      const table = new Table(stack, "LinksTable", {
+        fields: { id: "string" },
+        primaryIndex: { partitionKey: "id" },
+        cdk: { table: { removalPolicy: RemovalPolicy.DESTROY } },
+      });
+
+      const handler = new Function(stack, "Function", {
+        handler: "./redirect-handler.handler",
+        url: true,
+        bind: [redirectUrl, table],
+      });
+
+      new Config.Parameter(stack, "RedirectFunctionUrl", {
+        value: handler.url!,
+      });
+
+      stack.addOutputs({
+        RedirectFunctionUrl: redirect.url,
+        RedirectToUrl: redirectUrl.value,
+        TableName: table.tableName,
+      });
+    });
+  },
+} satisfies SSTConfig;
+```
+
+The SST `Table` construct represents an AWS DynamoDB Table. DynamoDB is an AWS managed, serverless database. It is extremely fast and is you practically never have to think about scaling it - AWS worries about doing all that for us. SST makes it very easy to get started with DynamoDB (although DynamoDB can get quite advanced if you feel like diving into it!) Investing some time into reading about querying and scanning data, table design and pricing models would not go to waste! However, in this course we'll only touch on the essentials in order to get going. We're also going to use a library called ElectroDB to give us a nice typesafe interface to interact with the data that we'll store in DynamoDB.
+
+The `Table` construct, like all constructs, takes a **Scope** and an **Id** parameter followed by some **Props**. Again, the Props are most interesting to us:
+
+- `fields: { id: "string" }` - `fields` are where we define field names and their corresponding type i.e. `"string"` or `"number"`. You don't need to specify all the fields the `Table` will support, only those that will be used as part of an index. We will only have one of those - the `id` which will be of type `"string"`.
+- `primaryIndex.partitionKey: "id"` - Indexes allow you to query your data extremely quickly. DynamoDB supports two main kinds of indexes, primary indexes and global secondary indexes (GSI). We'll only be using a primary index.  We'll tell DynamoDB that we want to use the `id` field as the `partitionKey`. In our application code, every item in our database will have an 8 character long `id` and a field that we'll end up calling `original` to store the original link to redirect to.
+- `cdk.table.removalPolicy: RemovalPolicy.DESTROY` - this is an enum value exported by `aws-cdk-lib` and is commonly used to tell CloudFormation what to do when some types of resources (infrastructure) are removed from a stack. We set this value to `Destroy` to tell CloudFormation that we want this `Table` completely removed when we run the `sst remove` command. In production we would rather set it to `Retain` the Table instead. This would be a necessary precaution to ensure we do not accidentally loose important user data! Particularly when working with short-lived ephemeral environments we always want clean up after ourselves - we don't want to leave DynamoDB Tables floating around!
+
+
+---
+## Defining a database schema
+
+Just because DynamoDB is "schema-less" doesn't actually mean we don't need to conform to a schema! Having structure in our data is essential, and that's where [ElectroDB](https://electrodb.dev/en/core-concepts/introduction/) comes in. ElectroDB allows you to define a schema in your application code, then using the magic of Typescript's incredible type inference you can then create, update and query data with the power of autocomplete. The additional intellisense Typescript gives you is also a fantastic way to explore the structure of your data right from the comfort of your IDE. 
+
+### Instantiate the DynamoDB service object
+
+We need a place to keep all logic related to our database together. The home for this database logic will be a directory called `db`. First create a new Typescript file called `db-client.ts`:
+
+```bash
+mkdir db
+touch db/db-client.ts
+```
+
+Copy and paste the following code into `db-client.ts` 
+
+```ts showLineNumbers
+import DynamoDB from "aws-sdk/clients/dynamodb";
+
+export const client = new DynamoDB.DocumentClient();
+```
+
+The `DynamoDB.DocumentClient` is the AWS [service object](https://docs.aws.amazon.com/sdk-for-javascript/v2/developer-guide/creating-and-calling-service-objects.html) for DynamoDB from the `aws-sdk/clients/dynamodb` module. It is the lower level AWS provided SDK for interfacing with DynamoDB directly. We just new it up and export it immediately. Simple.
+
+### Entities in ElectroDB
+
+Next create a file called `link.ts`. In this file we're going to define the ElectroDB `Entity` that we'll use to interface with our database.
+
+```bash
+touch db/link.ts
+```
+
+Copy and paste the following code into `db/link.ts` then spend a minute or two reading through it to try to understand what it is doing:
+
+```ts showLineNumbers
+import { Entity } from "electrodb";
+import DynamoDB from "aws-sdk/clients/dynamodb";
+import { nanoid } from "nanoid";
+import { Table } from "sst/node/table";
+import { client } from "./db-client";
+
+export const Links = new Entity(
+  {
+    model: {
+      entity: "users",
+      version: "1",
+      service: "link-shortener",
+    },
+    attributes: {
+      id: {
+        type: "string",
+        required: true,
+        default: () => nanoid(8),
+      },
+      original: {
+        type: "string",
+        required: true,
+      },
+    },
+    indexes: {
+      byId: {
+        pk: {
+          field: "id",
+          composite: ["id"],
+        },
+      },
+    },
+  },
+  { client, table: Table.LinksTable.tableName }
+);
+```
+
+An [`Entity`](https://electrodb.dev/en/modeling/entities/) is a ElectroDB concept - Entities are defined via a [schema](https://electrodb.dev/en/modeling/schema/), and they give us an interface through which to access our database. Briefly, the top level properties are:
+
+- `model`  - information that ElectroDB uses to "define" _this_ specific Entity.
+- `attributes` - An object containing each attribute that makes up the schema
+- `indexes` - An object containing table indexes, including the values for the table’s default Partition Key and Sort Key
+
+> **Clarification:** ElectroDB does not actually create or alter DynamoDB tables, so your indexes need to be created prior to use. We defined our indexes in our infrastructure code (the `Table` construct) defined in `sst.config.ts`! 
+
+At this point your project structure should look like this:
+
+```bash
+link-shortener
+|
+|-- .sst/
+|-- db/  
+│   |-- db-client.ts    # added
+│   |-- link.ts         # added
+|-- node_modules/
+|-- .gitignore
+|-- api.test.ts
+|-- package.json
+|-- redirect-handler.ts
+|-- sst-env.d.ts
+|-- sst.config.ts
+|-- tsconfig.json
+```
+
+With that necessary bit of setup out of the way, we can start reading from and writing to our database!
+
+> **Concept**: Primary indexes vs global secondary indexes (GSI) - **Primary indexes** enable unique identification of items and efficient retrieval of items within a table. Every DynamoDB table must have a primary index. **GSIs** on the other hand, enable querying a table using non-primary key attributes, extending query flexibility beyond that of the primary index. Every DynamoDB table can have zero or more GSIs.
+
+> **Concept**: A `partitionKey` is required on every DynamoDB table - it is the key that tells DynamoDB where to physically store an item and its data. A `sortKey`, also known as a range key, enables more advanced querying by sorting items with the same `partitionKey`.
+## Reading from the database
+
+Now we can start talking to our database from inside our AWS Lambda function! Copy and then paste the following code over everything that is currently in `redirect-handler.ts`
+
+```ts:redirect-handler.ts showLineNumbers
+import { ApiHandler, usePath, usePathParams } from "sst/node/api";
+import { Links } from "./db/link";
+
+export const handler = ApiHandler(async (_evt) => {
+  const [id] = usePath();
+
+  if (!id) {
+    return { statusCode: 400, body: "Bad request" };
+  }
+
+  const link = await Links.get({ id }).go();
+
+  if (!link.data) {
+    return { statusCode: 404, body: "Not found" };
+  }
+
+  return {
+    statusCode: 302,
+    headers: { Location: link.data.original },
+  };
+});
+```
+
+The redirect handler function now does the following:
+
+1. It pulls the `id` off the URL path using SST's `usePath` hook.  For the URL `https://example.com/1234`, `1234` would be the value of the  `id` path parameter.
+2. Checks if an `id` is supplied and if not, returns a 400: Bad Request.
+3. Fetches a link from the Links `Table` using the supplied `id`.
+4. If no item is found for that `id`, it returns a 404: Not Found.
+5. Otherwise we continue down the happy path and redirect the caller to the `original` location associated with the supplied `id`.
+
+   > **Concept:** Hooks in SST. The fact that SST hooks use a similar convention to React's hooks is no mistake and is intended to make them feel familiar and approachable. The hooks of SST do not have the same restrictions imposed on them as the hooks of the React world (for instance, conditional hooks are absolutely no problem). SST's hooks are simply convenience functions that allow us to "hook" into the event object (`_evt`) using a nice clean api.
+
+Lets run our tests again. Open up a terminal window and run `npx sst dev --stage dev` to start SST live lambda, then open another terminal and run your tests: `pnpm run test --stage dev`. Notice that our tests are failing again:
+
+```bash
+AssertionError: expected 400 to be 302 // Object.is equality
+```
+
+Our tests should be failing the assertion on the HTTP status code because we're receiving a 400 "Bad Request". Why? Because we're missing the `id` path param! Lets address that by supplying a random value in place of the `id` path param for now:
+
+```diff:api.test.ts showLineNumbers
+describe("redirect handler", () => {
++  const id = "abc123";
+   test(`returns a 302 redirect with location header set to ${Config.RedirectUrl}`, async () => {
+-        const response = await fetch(Config.FunctionUrl, {
++        const response = await fetch(Config.FunctionUrl + "/" + id, {
+            method: "GET",
+            redirect: "manual",
+         });
+
+         expect(response.status).toEqual(302);
+         expect(response.headers.get("Location")).toEqual(Config.RedirectUrl);
+    });
+});
+```
+
+Let the tests finish running. What do we get? Another failure! This time it's failing because we're receiving a 404 "Not Found" response:
+
+```bash
+AssertionError: expected 404 to be 302 // Object.is equality
+```
+
+Again, this makes sense because our database has nothing in it! 
+
+## Seeding the database
+
+In order for our redirect lambda to find item `abc123` we'll need to have something in the database that matches that `id` value! 
+
+```ts:api.test.ts {6-7, 9-17,26,29-32} showLineNumbers
+import { test, expect, describe, beforeEach, afterEach } from "vitest";
+import { Config } from "sst/node/config";
+import { Links } from "./db/link";
+
+describe("redirect handler", () => {
+  const id = "abcde";
+  const original = "https://www.example.com";
+
+  beforeEach(async () => {
+    await Links.create({ id, original }).go();
+  });
+
+  test(`returns a 302 redirect with location header set to ${original}`, async () => {
+    const response = await fetch(`${Config.RedirectFunctionUrl}/${id}`, {
+      method: "GET",
+      redirect: "manual",
+    });
+
+    expect(response.status).toEqual(302);
+    expect(response.headers.get("Location")).toEqual(original);
+  });
+
+  afterEach(async () => {
+    // clean up the data our test created
+    await Links.delete({ id }).go();
+  });
+});
+
+```
+
+
+The test now contains a `beforeEach` and an `afterEach` which are used to seed the database with data and perform some clean up, respectively.  Notice how we're writing to our database directly from inside our tests and then reading from our database via our Function URL. 
+
+Check that your tests are passing again! 🎉
+
+### Exercise: Testing the unhappy path
+
+Add two new tests in the `api.test.ts` to validate that the unhappy paths work as expected. You can use the test cases below as a starting point. You can always take a peek at the solution in the `module2` branch if you get stuck.
+
+```ts
+test(`returns a 400 if no id is supplied`, async () => {
+	// write your test here
+});
+
+test(`returns a 404 if no link is found for a given id`, async () => { 
+	// and here
+});
+```
+
+### API tests vs testing domain code
+
+Testing domain code involves calling your business logic directly by instantiating domain objects and calling their methods, etc. You physically `import` the functions and classes into your test file, call them and assert on their outputs. You might mock some functionality out as necessary  but you're generally reading and writing from a real database. Code changes can more easily require changes to your tests too, so care should be take to create thoughtful abstractions.
+
+API tests, on the other hand, are tests that call your business logic indirectly via an API endpoint. One of the reasons API tests are often preferable to domain tests is because they treat your domain code as a black box that you interface with via a well defined API. As long as the interface remains the same, your tests need not change. In other words, API tests test your app from the perspective of a user while ignoring the implementation details. That allows us to change the implementation of our lambda functions without having to do major refactoring of our tests, too. 
+
+More generally, we want tests that are resilient - tests shouldn't have to change every time we add a new feature or perform a refactor. Tests should strike a balance  - they need to catch legitimate issues, but not be so tied to the implementation that it is difficult to change our application.
+
+Both types of tests are useful in different situations, for us right now we don't have much domain logic to test so we're going to we'll stick to API tests!
+## Cleaning up unused infrastructure
+
+It's best not to leave infrastructure in your stack if it isn't being used. Lets get rid of the `RedirectToUrl` Parameter that we created in the last section!
+
+```diff:sst.config.ts
+...
+stacks(app) {
+    app.stack(({ stack }) => {
+
+-     const redirectToUrl = new Config.Parameter(stack, "RedirectToUrl", {
+-       value: "https://www.example.com/",
+-     });
+
+      const handler = new Function(stack, "RedirectHandler", {
+        handler: "./redirect-handler.handler",
+        url: true,
+-       bind: [table, redirectToUrl],
++       bind: [table],
+      });
+
+     stack.addOutputs({
+       RedirectFunctionUrl: handler.url,
+       TableName: table.tableName,
+-      RedirectToUrl: redirectToUrl.value,
+     });
+  });
+}
+```
+
+## Homework
+
+In this homework assignment you're going to add functionality that counts the number of times a link has been clicked. You're then going to add a new Function that can be used to retrieve the click count for a given link. As always you're going to cover these behaviours with test cases!
+
+### Part 1: Click counting
+#### Step 1: Update database schema
+
+We'll need to a place to store the number of times a link has been clicked. Add a new `count` field to the `Link` Entity.
+#### Step 2: Increment the counter
+
+Every time a link is clicked (i.e. when our function URL is called) we need to increment the `count` field. ElectroDB gives you an [`patch()`](https://electrodb.dev/en/mutations/update/) mutation which comes with an [`add()`](https://electrodb.dev/en/mutations/update/#update-method-add) method to make this trivial. 
+
+> **Clarification:** [update](https://electrodb.dev/en/mutations/update/) vs [patch](https://electrodb.dev/en/mutations/patch/) and [upsert](https://electrodb.dev/en/mutations/upsert/). DynamoDB will create non-existent items when using `update` which can result in partial items to be written to your table. When possible, use the patch or upsert methods.
+#### Step 3: Update the API tests
+
+Since the interface to our function hasn't changed yet, your tests should still be passing, but we've added new behaviour - click counting - and that has not been tested yet! Your job now is to add a test to confirm that after a shortened link has been clicked, the count has been incremented.
+
+```ts
+test(`increments click count by 1 for every click`, async () => {
+  // test goes here
+});
+```
+
+### Part 2: Deleting links
+
+Create a new lambda function called `delete-handler.ts`. The `Function` should be provisioned with its own Function URL that we can call in order to delete a link by the `id` path param. Write a test to check that it works. Follow the process we took for the redirect lambda function. 
+
+> **Tip:** You can use either the `remove()` method or the `delete()` method. The former will throw an error if the item does not exist, the latter delete an item if it exist but will not error if the item does not exist.
+
+---
+
+## Homework solution
+
+### Part 1
+
+```ts:api.test.ts {7,13-24} showLineNumbers
+describe("redirect handler", () => {
+  const id = "abcde";
+  const original = "https://www.example.com";
+
+  beforeEach(async () => {
+    await Links.create({ id, original, count: 0 }).go();
+  });
+
+  // ...
+
+  test(`increments click count by 1 for every click`, async () => {
+    let linkRes = await Links.get({ id }).go();
+
+    expect(linkRes.data?.count).toBe(0);
+
+    await fetch(`${Config.RedirectFunctionUrl}/${id}`, {
+      method: "GET",
+      redirect: "manual",
+    });
+
+    linkRes = await Links.get({ id }).go();
+
+    expect(linkRes.data?.count).toBe(1);
+  });
+
+  // ...
+
+  afterEach(async () => {
+    // clean up the data our test created
+    await Links.delete({ id }).go();
+  });
+});
+```
+
+### Part 2
+
+```ts:sst.config.ts showLineNumbers
+```
+
+```ts:delete-handler.ts showLineNumbers
+import { ApiHandler, usePath } from "sst/node/api";
+import { Links } from "./db/link";
+
+export const handler = ApiHandler(async (_evt) => {
+  const [id] = usePath();
+
+  if (!id) {
+    return { statusCode: 400, body: "Bad request" };
+  }
+
+  let link = await Links.get({ id }).go();
+
+  if (!link.data) {
+    return { statusCode: 404, body: "Not found" };
+  }
+
+  await Links.remove({ id }).go();
+
+  return {
+    statusCode: 302,
+    headers: { Location: link.data.original },
+  };
+});
+```
+
+```ts:api.test.ts showLineNumbers
+```

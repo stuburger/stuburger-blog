@@ -110,8 +110,9 @@ export const handler = ApiHandler(async (_evt) => {
 });
 ```
 
-The `handler` function simply returns a hard coded 302 redirect to google.com. The higher order [handler](https://docs.sst.dev/clients/api#handlers) function called `ApiHandler` allows us to make use of the many [hooks](https://docs.sst.dev/clients/api#hooks) available in the `sst/node/api` module. Don't worry too much about how hooks work, but the fact that they use a similar convention to React's hooks is no mistake and is intended to make them feel familiar and approachable. (that said, the do not have the same restrictions imposed on React hooks). SST's hooks are simply convenience functions that allow us to "hook" into the event object using a nice clean api.
+The `handler` function simply returns a hard coded 302 redirect to google.com. The higher order [handler](https://docs.sst.dev/clients/api#handlers) function called `ApiHandler` allows us to make use of the many [hooks](https://docs.sst.dev/clients/api#hooks) available in the [`sst/node/api`](https://docs.sst.dev/clients/api) module.
 
+`_evt` is the is the raw event object that AWS Lambda passes to every lambda function when it is invoked. It contains things like a `body` payload, `headers` and other contextual information about how the function was invoked. The properties of the event object differ based on how the function is invoked, which service invoked it, etc. SST provided hooks allow us to access many of the properties of the event object conveniently without having to do this manually, for example the `useJsonBody()` hook allows you to skip having to repeatedly call `JSON.parse(event.body)`.
 ### Infrastructure code
 
 Next, open up the `sst.config.ts` file we were talking about earlier. Its time to write our first bit of Infrastructure as Code. In the `stacks` function we're going to add the following code
@@ -121,17 +122,17 @@ import { Function } from "sst/constructs";
 
 stacks(app) {
   app.stack(({ stack }) => {
-      const handler = new Function(stack, "Function", {
+      const handler = new Function(stack, "RedirectHandler", {
         handler: "./redirect-handler.handler",
         url: true,
       });
 
-      new Config.Parameter(stack, "FunctionUrl", {
+      new Config.Parameter(stack, "RedirectFunctionUrl", {
         value: handler.url!,
       });
 
       stack.addOutputs({
-        FunctionUrl: handler.url,
+        RedirectFunctionUrl: handler.url,
       });
   });
 }
@@ -145,14 +146,14 @@ The `Function` class is an SST construct that represents an AWS Lambda function.
 
 Props are most interesting to us right now. We specify two props:
 
-1. `handler` - this essentially the physical location on disk where your lambda handler code lives! It is a relative path in the format `./path/to/file.function` where `function` is the name of your exported lambda function handler. Notice we haven't included the `.ts` extension after the filename. In our case the file is called `redirect-handler.ts` and the function that we've exported is, rather unimaginatively, called `handler`.
-2. `url` - gives us a simple way to invoke our lambda function using a function url. We will remove this later and let ApiGateway route traffic to our function instead, but for now this is all we need to get started!
+1. `handler: "./redirect-handler.handler"` - this essentially the physical location on disk where your lambda handler code lives! It is a relative path in the format `./path/to/file.function` where `function` is the name of your exported lambda function handler. Notice we haven't included the `.ts` extension after the filename. In our case the file is called `redirect-handler.ts` and the function that we've exported is, rather unimaginatively, called `handler`.
+2. `url: true` - gives us a simple way to invoke our lambda function using a feature of AWS Lambda called a [function url](https://docs.aws.amazon.com/lambda/latest/dg/lambda-urls.html). Simply invoke the function using the `RedirectFunctionUrl` output by the stack. You'll find it output into your terminal after running `sst deploy` or `sst dev`. We will remove this later and let ApiGateway route traffic to our function instead, but for now this is all we need to get started! 
 
-Next we instantiate a new `Config.Parameter`. It takes arguments in the same fashion as the `Function` construct (Scope, Id and Props). In SST, a `Config.Parameter` _provisions_ a parameter in AWS Parameter Store. Parameter Store is simply a key/value store where we store configuration that we have access to in lambda functions or in our tests by importing from the `sst/node/config` module. We'll see how to do this in just a moment!
+Next we instantiate a new `Config.Parameter`. It takes arguments in the same fashion as the `Function` construct (Scope, Id and Props). In SST, a `Config.Parameter` _provisions_ a parameter in AWS Parameter Store. Parameter Store is simply a key/value store where we store configuration that we can then access in our lambda functions or in our tests by importing them from the [`sst/node/config`](https://docs.sst.dev/clients/config) module. We'll see how to do this in just a moment!
 
 > **Definition**: In the world of IT infrastructure, the word "**provision**" refers to the process of creating and configuring IT resources.
 
-Finally there is the line `stack.addOutputs({ FunctionUrl: handler.url })` which defines an output for the CloudFormation stack.
+Finally there is the line `stack.addOutputs({ RedirectFunctionUrl: handler.url })` which defines an output for the CloudFormation stack.
 
 In AWS CloudFormation, outputs allow you to expose certain values or resources from your stack, making them accessible or usable by other stacks or external systems. These outputs could be things like endpoint URLs, resource IDs, or any other information you want to make available. For now we'll just think of this as good hygiene that we want to build some muscle memory around.
 
@@ -193,7 +194,7 @@ Once complete your terminal should show you something like this:
 There are two links in the output to take note of:
 
 - The first link takes you to the SST [Console](https://docs.sst.dev/console), click on it and sign in with your email address. The SST Console is a web based dashboard to manage your SST apps. The console allows you to invoke functions, view logs, and manage all your apps with your team. Have a play around and read the SST Console [documentation](https://docs.sst.dev/console) on the SST website.
-- The second link is the FunctionUrl that we added to the stack outputs and is the URL that exposes our lambda function to the world. Copy the URL onto your clipboard, open a new browser tab, paste the link in the address bar and hit enter. You should get **redirected** to google.com! 🎉
+- The second link is the RedirectFunctionUrl that we added to the stack outputs and is the URL that exposes our lambda function to the world. Copy the URL onto your clipboard, open a new browser tab, paste the link in the address bar and hit enter. You should get **redirected** to google.com! 🎉
 
 Notice that after running the command `sst dev` you now have a `.sst` directory in your file explorer. SST creates this automatically whenever you run `sst dev`, `sst build` or `sst deploy`. It contains build assets and auto-generated code including the Typescript types for our apps resources.
 
@@ -245,7 +246,7 @@ Open up package.json and add the following `test` script that we can use to conv
 
 ```json
 "scripts": {
-	"test": "sst bind vitest run"
+	"test": "sst bind vitest"
 }
 ```
 
@@ -259,21 +260,23 @@ But we don't have any tests yet, so lets write one...
 import { test, expect } from "vitest";
 import { Config } from "sst/node/config";
 
-test("returns a 302 redirect with location header set", async () => {
-  const response = await fetch(Config.FunctionUrl, {
-    method: "GET",
-    redirect: "manual", // disable the default behaviour which is to "follow"
-  });
-
-  expect(response.status).toEqual(302);
-  expect(response.headers.get("Location")).toEqual("https://www.google.com");
+describe("redirect handler", () => {
+	test("returns a 302 redirect with location header set", async () => {
+	  const response = await fetch(Config.RedirectFunctionUrl, {
+	    method: "GET",
+	    redirect: "manual", // disable the default behaviour which is to "follow"
+	  });
+	
+	  expect(response.status).toEqual(302);
+	  expect(response.headers.get("Location")).toEqual("https://www.google.com");
+	});
 });
 ```
 
 You might have noticed that we're getting a typescript error stating that:
 
 ```
-Property 'FunctionUrl' does not exist on type 'ConfigTypes & ParameterTypes & SecretTypes'.ts(2339)
+Property 'RedirectFunctionUrl' does not exist on type 'ConfigTypes & ParameterTypes & SecretTypes'.ts(2339)
 ```
 
 We see this error because Typescript doesn't know where to look for our apps resources yet. [To get the full benefits of typesafety](https://docs.sst.dev/resource-binding#typesafety-1) we first need to create a file called `sst-env.d.ts` and then paste in the following line of code:
@@ -360,12 +363,71 @@ Next up there is some homework help solidify these concepts. The solution can be
 
 Your homework assignment is to add some flexibility to our lambda function by removing the hard coded redirect using some of the concepts you've just learned.
 
-1. Use another `Parameter` called `RedirectUrl` to store a the URL that you want to redirect requests to. Instead of hardcoding the URL in the lambda function, we're hardcoding it in the infrastructure code. This time, use the value `"https://example.com"`.
-2. Import the Config into your redirect handler function and replace the hardcoded `https://google.com` with the `RedirectUrl`.
+1. Use another `Parameter` called `RedirectToUrl` to store a the URL that you want to redirect requests to. Instead of hardcoding the URL in the lambda function, we're hardcoding it in the infrastructure code. This time, use the value `"https://example.com"`.
+2. Import the Config into your redirect handler function and replace the hardcoded `https://google.com` with the `RedirectToUrl`.
 
-   > Hint: you'll have to use [Resource Binding](https://docs.sst.dev/resource-binding#binding-other-resources) with the `bind` prop on your `Function` in order access the `RedirectUrl` in your lambda function.
+   > Hint: you'll have to use [Resource Binding](https://docs.sst.dev/resource-binding#binding-other-resources) with the `bind` prop on your `Function` in order access the `RedirectToUrl` in your lambda function.
 
 3. Run your application locally using the `sst dev` command again (remember to include the `--stage`)
-4. Update your test so it keeps passing using the new RedirectURL. Don't use any hardcoded strings in your tests!
-5. Deploy your link shortener app to prod and confirm its working by navigating to the `FunctionUrl` and confirming you get redirected to `example.com` in your browser.
+4. Update your test so it keeps passing using the new RedirectToUrl. Don't use any hardcoded strings in your tests!
+5. Deploy your link shortener app to prod and confirm its working by navigating to the `RedirectFunctionUrl` and confirming you get redirected to `example.com` in your browser.
 6. Bonus: Another way to confirm that prod is working as expected is by running your test against the prod environment. How would we do that?
+
+---
+
+## Homework solution
+
+```ts:sst.config.ts {13-15, 20, 29} showLineNumbers
+import { SSTConfig } from "sst";
+import { Config, Function } from "sst/constructs";
+
+export default {
+  config(_input) {
+    return {
+      name: "link-shortener",
+      region: "us-east-1",
+    };
+  },
+  stacks(app) {
+    app.stack(({ stack }) => {
+      const redirectToUrl = new Config.Parameter(stack, "RedirectToUrl", {
+        value: "https://www.example.com/",
+      });
+
+      const handler = new Function(stack, "RedirectHandler", {
+        handler: "./redirect-handler.handler",
+        url: true,
+        bind: [redirectToUrl],
+      });
+
+      new Config.Parameter(stack, "RedirectFunctionUrl", {
+        value: handler.url!,
+      });
+
+      stack.addOutputs({
+        RedirectFunctionUrl: handler.url,
+        RedirectToUrl: redirectToUrl.value,
+      });
+    });
+  },
+} satisfies SSTConfig;
+
+```
+
+```diff:api.test.ts showLineNumbers 
+import { test, expect } from "vitest";
++ import { Config } from "sst/node/config";
+
+describe("redirect handler", () => {
+	test(`returns a 302 redirect with location header set to ${Config.RedirectToUrl}`, async () => {
+		const response = await fetch(Config.RedirectFunctionUrl, {
+			method: "GET",
+			redirect: "manual",
+		});
+		
+		expect(response.status).toEqual(302);
+-    expect(response.headers.get("Location")).toEqual("https://www.google.com");
++	expect(response.headers.get("Location")).toEqual(Config.RedirectToUrl);
+	});
+})
+```
