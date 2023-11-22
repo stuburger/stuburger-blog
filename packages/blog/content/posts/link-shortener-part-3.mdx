@@ -122,7 +122,7 @@ import { Function } from "sst/constructs";
 
 stacks(app) {
   app.stack(({ stack }) => {
-      const handler = new Function(stack, "RedirectHandler", {
+      const redirectHandler = new Function(stack, "RedirectHandler", {
         handler: "./redirect-handler.handler",
         url: true,
       });
@@ -394,7 +394,7 @@ export default {
         value: "https://www.example.com/",
       });
 
-      const handler = new Function(stack, "RedirectHandler", {
+      const redirectHandler = new Function(stack, "RedirectHandler", {
         handler: "./redirect-handler.handler",
         url: true,
         bind: [redirectToUrl],
