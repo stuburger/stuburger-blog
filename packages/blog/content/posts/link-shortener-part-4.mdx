@@ -3,28 +3,26 @@ title: Adding a DynamoDB table to an SST app
 description: Building a simple serverless link shortener with SST - Part 4
 date: 2023-11-15
 ---
-
+to stay in the UK until
 > _This series is a work in progress._
 
-So far we've created a lambda function that simply returns a hard coded value. Your homework was to use a new `Parameter` to store the RedirectToUrl in AWS Parameter Store and update our test to make sure it continues to pass.
+So far we've created a lambda function that simply returns a hard coded value. Your homework was to use a new `Parameter` to store the `RedirectToUrl` in AWS Parameter Store and update our test to make sure it continues to pass.
 
 > If you had trouble with the homework, take a look at the `module1` branch for the solution.
 
-Our hardcoded `RedirectToURL` isn't particularly good use of a "Parameter". While it does allow us to configure our functions via SSM, it would be much better to store these URLs inside a real database. `Parameters` aren't really a good fit for this use case. They're generally used for configuration for the app itself, not as a place to store what is essentially going to be a user's data! For that we need a database. We're going to be using DynamoDB for our database. Almost any database would do but [DynamoDB](https://docs.aws.amazon.com/dynamodb/?pg=dynamodbt&sec=hs) is a great choice for us because SST provides excellent out-of-the-box support for DynamoDB by way of their `Table` construct. We can use this Table construct to provision a DynamoDB `Table` and `bind` it to our `Function` construct so that we can read and write to the database from our application code.
-
+Our hardcoded `RedirectToURL` isn't a particularly good use case for the `Parameter` construct. While it does allow us to configure our functions via SSM, it would be much better to store these URLs inside a real database. `Parameters` aren't really a good fit for this use case. They are generally used for configuration of the app itself, not as a place to store user data! For that we need a database. We're going to be using DynamoDB for our database. Almost any database would do but [DynamoDB](https://docs.aws.amazon.com/dynamodb/?pg=dynamodbt&sec=hs) is a great choice for us because SST provides excellent out-of-the-box support for DynamoDB by way of their `Table` construct. We can use this Table construct to provision a DynamoDB table and `bind` it to our `Function` construct so that we can read and write to the database from our application code.
 ## Learning goals
 
 In this section you are going to:
 
 - Provision a DynamoDB using the SST `Table` construct and bind it to your `redirect-handler` `Function`
-- Update our existing API tests so that we seeds our database before tests are run and is cleaned up any data left behind after a test is finished.
-- Update our redirect-hander so that it reads from our database and handles bad requests and not found cases.
-- You will API test passing and write some new cases for the Bad Request and Not Found cases.
-- In the homework section we'll take the training wheels off and give you the opportunity to use your new knowledge to create `Function` that can be used to shorten links! It goes without saying that you'd want some tests for the link shortener lambda function!
+- Update our existing API tests to see the database before tests are run and clean up any data left behind after a test is finished.
+- Update our redirect-hander so that it reads from our database and handles Bad Requests and Not Found scenarios. You'll also write some tests for these "unhappy paths".
+- In the homework section we'll take the training wheels off where you will use your new knowledge to create `Function` that can be used to delete links! Again, it goes without saying that you'd want some tests for newly created delete endpoint!
 
 ## Provisioning a DynamoDB Table
 
-The first thing we neeed to do is actually _provision_ the `Table` that we're going to be using to store our links. Amend your `sst.config.ts` file so that it looks like this:
+The first thing we need to do is actually _provision_ a `Table` to store our links. Amend your `sst.config.ts` file so that it looks like this:
 
 ```ts {1-3,18-22, 27, 31} showLineNumbers
 import { SSTConfig } from "sst";
@@ -70,7 +68,7 @@ export default {
 } satisfies SSTConfig;
 ```
 
-The SST `Table` construct represents an AWS DynamoDB Table. DynamoDB is an AWS managed, serverless database. It is extremely fast and is you practically never have to think about scaling it - AWS worries about doing all that for us. SST makes it very easy to get started with DynamoDB (although DynamoDB can get quite advanced if you feel like diving into it!) Investing some time into reading about querying and scanning data, table design and pricing models would not go to waste! However, in this course we'll only touch on the essentials in order to get going. We're also going to use a library called ElectroDB to give us a nice typesafe interface to interact with the data that we'll store in DynamoDB.
+The SST `Table` construct represents an AWS DynamoDB Table. DynamoDB is an AWS managed, serverless database. It is extremely fast and is you practically never have to think about scaling it - AWS worries about doing all that for us. SST makes it very easy to get started with DynamoDB (although DynamoDB can get quite advanced if you feel like diving into it!) Investing some time into reading about querying and scanning data, table design and pricing models would not go to waste! However, in this course we'll only focus on the essentials in order to get going. We're also going to use a library called ElectroDB to give us a nice typesafe interface to interact with the data that we'll store in DynamoDB.
 
 The `Table` construct, like all constructs, takes a **Scope** and an **Id** parameter followed by some **Props**. Again, the Props are most interesting to us:
 
@@ -78,6 +76,7 @@ The `Table` construct, like all constructs, takes a **Scope** and an **Id** para
 - `primaryIndex.partitionKey: "id"` - Indexes allow you to query your data extremely quickly. DynamoDB supports two main kinds of indexes, primary indexes and global secondary indexes (GSI). We'll only be using a primary index.  We'll tell DynamoDB that we want to use the `id` field as the `partitionKey`. In our application code, every item in our database will have an 8 character long `id` and a field that we'll end up calling `original` to store the original link to redirect to.
 - `cdk.table.removalPolicy: RemovalPolicy.DESTROY` - this is an enum value exported by `aws-cdk-lib` and is commonly used to tell CloudFormation what to do when some types of resources (infrastructure) are removed from a stack. We set this value to `Destroy` to tell CloudFormation that we want this `Table` completely removed when we run the `sst remove` command. In production we would rather set it to `Retain` the Table instead. This would be a necessary precaution to ensure we do not accidentally loose important user data! Particularly when working with short-lived ephemeral environments we always want clean up after ourselves - we don't want to leave DynamoDB Tables floating around!
 
+Finally, notice that we `bind` the `Table` to the `Function`. This will allow us to import the Table from the `sst/node/table` into our application code in a typesafe way. When a resource is bound to a Lambda function, the permissions to access that resource are automatically granted to the function.
 
 ---
 ## Defining a database schema
@@ -527,11 +526,11 @@ link-shortener
 │   |-- link.ts
 |-- node_modules/
 |-- .gitignore
-|-- api.test.ts
+|-- api.test.ts         # modified
 |-- delete-handler.ts   # added
 |-- package.json
 |-- redirect-handler.ts
 |-- sst-env.d.ts
-|-- sst.config.ts
+|-- sst.config.ts       # modified
 |-- tsconfig.json
 ```
