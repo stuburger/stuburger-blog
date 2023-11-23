@@ -50,6 +50,34 @@ export const Post = defineDocumentType(() => ({
       type: "string",
       required: true,
     },
+    draft: {
+      type: "boolean",
+      required: false,
+    },
+    description: {
+      type: "string",
+    },
+    date: {
+      type: "date",
+      required: true,
+    },
+  },
+  computedFields,
+}));
+
+export const Tutorial = defineDocumentType(() => ({
+  name: "Tutorial",
+  filePathPattern: `tutorials/**/*.mdx`,
+  contentType: "mdx",
+  fields: {
+    title: {
+      type: "string",
+      required: true,
+    },
+    draft: {
+      type: "boolean",
+      required: false,
+    },
     description: {
       type: "string",
     },
@@ -63,7 +91,7 @@ export const Post = defineDocumentType(() => ({
 
 export default makeSource({
   contentDirPath: "./content",
-  documentTypes: [Post, Page],
+  documentTypes: [Post, Page, Tutorial],
   mdx: {
     remarkPlugins: [remarkGfm],
     rehypePlugins: [

@@ -4,6 +4,7 @@ import Link from "next/link";
 export default function Home() {
   return (
     <div className="prose dark:prose-invert">
+      <h1>Posts</h1>
       {allPosts
         .filter((post) => !post.draft)
         .map((post) => (
