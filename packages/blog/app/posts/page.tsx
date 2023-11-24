@@ -1,4 +1,4 @@
-import { allTutorials } from "@/.contentlayer/generated";
+import { allPosts } from "@/.contentlayer/generated";
 import { Article } from "@/components/article";
 
 export default function Home() {
@@ -7,22 +7,22 @@ export default function Home() {
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
         <div className="mx-auto max-w-2xl lg:max-w-4xl">
           <h2 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-4xl">
-            Tutorials
+            Blog
           </h2>
           <p className="mt-2 text-lg leading-8 text-gray-600 dark:text-gray-400">
-            A collection of step-by-step guides
+            A collection of my thoughts about stuff
           </p>
           <div className="mt-16 space-y-20 lg:mt-20 lg:space-y-20">
-            {allTutorials
-              .filter((tut) => !tut.draft)
-              .map((tut) => (
+            {allPosts
+              .filter((post) => !post.draft)
+              .map((post) => (
                 <Article
-                  id={tut._id}
-                  key={tut._id}
-                  date={new Date(tut.date)}
-                  description={tut.description}
-                  title={tut.title}
-                  slug={tut.slug}
+                  id={post._id}
+                  key={post._id}
+                  date={new Date(post.date)}
+                  description={post.description}
+                  title={post.title}
+                  slug={post.slug}
                 />
               ))}
           </div>

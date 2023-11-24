@@ -8,6 +8,7 @@ import rehypeSlug from "rehype-slug";
 import rehypeAutolinkHeadings from "rehype-autolink-headings";
 import rehypeCodeTitles from "rehype-code-titles";
 import rehypePrism from "rehype-prism-plus";
+import readingTime from "reading-time";
 import { rehypeAccessibleEmojis } from "rehype-accessible-emojis";
 
 const computedFields: ComputedFields = {
@@ -15,10 +16,10 @@ const computedFields: ComputedFields = {
     type: "string",
     resolve: (doc) => `/${doc._raw.flattenedPath}`,
   },
-  // readingTime: {
-  //   type: "json",
-  //   resolve: (doc) => readingTime(doc.body.raw),
-  // },
+  readingTime: {
+    type: "json",
+    resolve: (doc) => readingTime(doc.body.raw),
+  },
   slugAsParams: {
     type: "string",
     resolve: (doc) => doc._raw.flattenedPath.split("/").slice(1).join("/"),
