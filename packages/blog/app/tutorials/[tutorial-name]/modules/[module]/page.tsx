@@ -1,20 +1,22 @@
 import { notFound } from "next/navigation";
-import { allTutorials } from "contentlayer/generated";
+import { allModules } from "contentlayer/generated";
 
 import { Metadata } from "next";
 import { Mdx } from "@/components/mdx-components";
 
 interface PostProps {
   params: {
-    slug: string[];
+    "tutorial-name": string;
+    module: string;
   };
 }
 
 async function getPostFromParams(params: PostProps["params"]) {
-  const slug = params?.slug?.join("/");
-  const post = allTutorials.find(
-    (post) => post.slugAsParams === slug && !post.draft
-  );
+  const slug = `${params["tutorial-name"]}/modules/${params.module}`;
+
+  const post = allModules.find((post) => {
+    return post.slugAsParams === slug && !post.draft;
+  });
 
   if (!post) {
     null;
@@ -39,7 +41,7 @@ export async function generateMetadata({
 }
 
 export async function generateStaticParams(): Promise<PostProps["params"][]> {
-  return allTutorials.map((post) => ({
+  return allModules.map((post) => ({
     slug: post.slugAsParams.split("/"),
   }));
 }

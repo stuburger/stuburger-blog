@@ -14,12 +14,12 @@ export default function Home() {
           </p>
           <div className="mt-16 space-y-20 lg:mt-20 lg:space-y-20">
             {allTutorials
-              .filter((tut) => !tut.draft)
+              // .filter((tut) => !tut.draft)
               .map((tut) => (
                 <Article
                   id={tut._id}
                   key={tut._id}
-                  date={new Date(tut.date)}
+                  date={new Date()}
                   description={tut.description}
                   title={tut.title}
                   slug={tut.slug}

@@ -1,4 +1,5 @@
 ---
+series: SST
 title: Getting started with SST
 description: Building a simple serverless link shortener with SST - Part 3
 date: 2023-11-08
@@ -113,6 +114,7 @@ export const handler = ApiHandler(async (_evt) => {
 The `handler` function simply returns a hard coded 302 redirect to google.com. The higher order [handler](https://docs.sst.dev/clients/api#handlers) function called `ApiHandler` allows us to make use of the many [hooks](https://docs.sst.dev/clients/api#hooks) available in the [`sst/node/api`](https://docs.sst.dev/clients/api) module.
 
 `_evt` is the is the raw event object that AWS Lambda passes to every lambda function when it is invoked. It contains things like a `body` payload, `headers` and other contextual information about how the function was invoked. The properties of the event object differ based on how the function is invoked, which service invoked it, etc. SST provided hooks allow us to access many of the properties of the event object conveniently without having to do this manually, for example the `useJsonBody()` hook allows you to skip having to repeatedly call `JSON.parse(event.body)`.
+
 ### Infrastructure code
 
 Next, open up the `sst.config.ts` file we were talking about earlier. Its time to write our first bit of Infrastructure as Code. In the `stacks` function we're going to add the following code
@@ -147,7 +149,7 @@ The `Function` class is an SST construct that represents an AWS Lambda function.
 Props are most interesting to us right now. We specify two props:
 
 1. `handler: "./redirect-handler.handler"` - this essentially the physical location on disk where your lambda handler code lives! It is a relative path in the format `./path/to/file.function` where `function` is the name of your exported lambda function handler. Notice we haven't included the `.ts` extension after the filename. In our case the file is called `redirect-handler.ts` and the function that we've exported is, rather unimaginatively, called `handler`.
-2. `url: true` - gives us a simple way to invoke our lambda function using a feature of AWS Lambda called a [function url](https://docs.aws.amazon.com/lambda/latest/dg/lambda-urls.html). Simply invoke the function using the `RedirectFunctionUrl` output by the stack. You'll find it output into your terminal after running `sst deploy` or `sst dev`. We will remove this later and let ApiGateway route traffic to our function instead, but for now this is all we need to get started! 
+2. `url: true` - gives us a simple way to invoke our lambda function using a feature of AWS Lambda called a [function url](https://docs.aws.amazon.com/lambda/latest/dg/lambda-urls.html). Simply invoke the function using the `RedirectFunctionUrl` output by the stack. You'll find it output into your terminal after running `sst deploy` or `sst dev`. We will remove this later and let ApiGateway route traffic to our function instead, but for now this is all we need to get started!
 
 Next we instantiate a new `Config.Parameter`. It takes arguments in the same fashion as the `Function` construct (Scope, Id and Props). In SST, a `Config.Parameter` _provisions_ a parameter in AWS Parameter Store. Parameter Store is simply a key/value store where we store configuration that we can then access in our lambda functions or in our tests by importing them from the [`sst/node/config`](https://docs.sst.dev/clients/config) module. We'll see how to do this in just a moment!
 
@@ -261,15 +263,15 @@ import { test, expect } from "vitest";
 import { Config } from "sst/node/config";
 
 describe("redirect handler", () => {
-	test("returns a 302 redirect with location header set", async () => {
-	  const response = await fetch(Config.RedirectFunctionUrl, {
-	    method: "GET",
-	    redirect: "manual", // disable the default behaviour which is to "follow"
-	  });
-	
-	  expect(response.status).toEqual(302);
-	  expect(response.headers.get("Location")).toEqual("https://www.google.com");
-	});
+  test("returns a 302 redirect with location header set", async () => {
+    const response = await fetch(Config.RedirectFunctionUrl, {
+      method: "GET",
+      redirect: "manual", // disable the default behaviour which is to "follow"
+    });
+
+    expect(response.status).toEqual(302);
+    expect(response.headers.get("Location")).toEqual("https://www.google.com");
+  });
 });
 ```
 
@@ -414,7 +416,7 @@ export default {
 
 ```
 
-```diff:api.test.ts showLineNumbers 
+```diff:api.test.ts showLineNumbers
 import { test, expect } from "vitest";
 + import { Config } from "sst/node/config";
 
@@ -424,7 +426,7 @@ describe("redirect handler", () => {
 			method: "GET",
 			redirect: "manual",
 		});
-		
+
 		expect(response.status).toEqual(302);
 -    expect(response.headers.get("Location")).toEqual("https://www.google.com");
 +	expect(response.headers.get("Location")).toEqual(Config.RedirectToUrl);

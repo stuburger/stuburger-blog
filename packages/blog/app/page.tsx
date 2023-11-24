@@ -1,4 +1,4 @@
-import { allPosts, allTutorials } from "@/.contentlayer/generated";
+import { allModules, allPosts, allTutorials } from "@/.contentlayer/generated";
 import { Article } from "@/components/article";
 
 export default function Home() {
@@ -25,16 +25,16 @@ export default function Home() {
                   slug={post.slug}
                 />
               ))}
-            {allTutorials
-              .filter((tut) => !tut.draft)
-              .map((tut) => (
+            {allModules
+              .filter((post) => !post.draft)
+              .map((post) => (
                 <Article
-                  id={tut._id}
-                  key={tut._id}
-                  date={new Date(tut.date)}
-                  description={tut.description}
-                  title={tut.title}
-                  slug={tut.slug}
+                  id={post._id}
+                  key={post._id}
+                  date={new Date(post.date)}
+                  description={post.description}
+                  title={post.title}
+                  slug={post.slug}
                 />
               ))}
           </div>

@@ -1,19 +1,21 @@
 ---
-title: An introduction to this tutorial series
-description: Building a serverless link shortener with SST - Part 1
+series: SST
+title: Full-stack applicaiton development with SST and AWS CDK
+description: Building a serverless link shortener with SST
 date: 2023-11-03
 ---
-> *This series is a work in progress.*
 
-I want to keep this tutorial series super accessible and for it to be beginner friendly dive into the world of infrastructure and serverless application development using SST. That means keeping the complexity of the business domain to a minimum. So what better thing to build that a serverless link shortener?  
+> _This series is a work in progress._
+
+I want to keep this tutorial series super accessible and for it to be beginner friendly dive into the world of infrastructure and serverless application development using SST. That means keeping the complexity of the business domain to a minimum. So what better thing to build that a serverless link shortener?
 
 ## What is a link shortener?
 
-Link shorteners can turn a link from this: `https://www.example.com/path/to/some/random/thing?utm_source=facebook&utm_medium=social&utm_campaign=link-in-bio`, into this: `https://supalink.co/a2x1`. Link shorteners are simple tools that take a long, possibly ugly link and turns it into a nice, terse url that is easy on the eyes. 
+Link shorteners can turn a link from this: `https://www.example.com/path/to/some/random/thing?utm_source=facebook&utm_medium=social&utm_campaign=link-in-bio`, into this: `https://supalink.co/a2x1`. Link shorteners are simple tools that take a long, possibly ugly link and turns it into a nice, terse url that is easy on the eyes.
 
 ## Who is this tutorial for?
 
-This tutorial is for anyone who wants to learn more about building serverless applications on AWS. It aims to be accessible to very beginners by keeping descriptions simple. At the end of every post I will provide further reading if you are interested in delving deeper! 
+This tutorial is for anyone who wants to learn more about building serverless applications on AWS. It aims to be accessible to very beginners by keeping descriptions simple. At the end of every post I will provide further reading if you are interested in delving deeper!
 
 ## What we're going to cover
 
@@ -32,11 +34,10 @@ When clicking on a shortened link the following things usually happen:
 
 1. An API queries a database in order to look up the original URL. The look up is typically based on a unique identifier (often using the "back-half" of the link), then
 2. A counter associated with that link is incremented allowing us to keep track of the number of times a link is clicked and finally,
-3. A 302 redirect is returned and the browser forwards the user on to the original URL. 
+3. A 302 redirect is returned and the browser forwards the user on to the original URL.
 
 ## Link shorteners in the wild
 
-There are hundreds of link shorteners out there. [Bitly](https://bitly.com/) is perhaps the most well known example of a link shortener. Two other well known link shorteners are [shorturl](https://www.shorturl.at/) and [tinyurl](https://www.shorturl.at/). Feel free to take a look at them and have a play in order to get a feel for what we're building. There are even open source versions that you can be self hosted such as [shlink](https://shlink.io/)! 
+There are hundreds of link shorteners out there. [Bitly](https://bitly.com/) is perhaps the most well known example of a link shortener. Two other well known link shorteners are [shorturl](https://www.shorturl.at/) and [tinyurl](https://www.shorturl.at/). Feel free to take a look at them and have a play in order to get a feel for what we're building. There are even open source versions that you can be self hosted such as [shlink](https://shlink.io/)!
 
 Social media apps like X (formally Twitter) shorten links atomically when you include a URL in a post. X's link shortening service is called http://t.co. Whether knowingly or not, it is quite possible that you have used link shorteners before (and you've almost certainly clicked on a shortened link). In the case of X, shortening links helps keep the number of characters in a message within the maximum limit. But more importantly, clicking on a https://t.co also gives X the ability to count how many times a link has been clicked which allows them to measure how well a link is performing.
-

@@ -68,7 +68,29 @@ export const Post = defineDocumentType(() => ({
 
 export const Tutorial = defineDocumentType(() => ({
   name: "Tutorial",
-  filePathPattern: `tutorials/**/*.mdx`,
+  filePathPattern: `tutorials/*/*.mdx`,
+  contentType: "mdx",
+  fields: {
+    title: {
+      type: "string",
+      required: true,
+    },
+    description: {
+      type: "string",
+    },
+  },
+  computedFields: {
+    ...computedFields,
+    slug: {
+      type: "string",
+      resolve: (doc) => `/${doc._raw.flattenedPath.replace("/index", "")}`,
+    },
+  },
+}));
+
+export const Module = defineDocumentType(() => ({
+  name: "Module",
+  filePathPattern: `tutorials/*/modules/*.mdx`,
   contentType: "mdx",
   fields: {
     title: {
@@ -92,7 +114,7 @@ export const Tutorial = defineDocumentType(() => ({
 
 export default makeSource({
   contentDirPath: "./content",
-  documentTypes: [Post, Page, Tutorial],
+  documentTypes: [Post, Page, Tutorial, Module],
   mdx: {
     remarkPlugins: [remarkGfm],
     rehypePlugins: [
