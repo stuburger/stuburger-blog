@@ -1,98 +1,113 @@
-const posts = [
+import {
+  AcademicCapIcon,
+  BanknotesIcon,
+  CheckBadgeIcon,
+  ClockIcon,
+  ReceiptRefundIcon,
+  UsersIcon,
+} from "@heroicons/react/24/outline";
+
+const actions = [
   {
-    id: 1,
-    title: "Boost your conversion rate",
+    title: "Request time off",
     href: "#",
-    description:
-      "Illo sint voluptas. Error voluptates culpa eligendi. Hic vel totam vitae illo. Non aliquid explicabo necessitatibus unde. Sed exercitationem placeat consectetur nulla deserunt vel iusto corrupti dicta laboris incididunt.",
-    imageUrl:
-      "https://images.unsplash.com/photo-1496128858413-b36217c2ce36?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=3603&q=80",
-    date: "Mar 16, 2020",
-    datetime: "2020-03-16",
-    category: { title: "Marketing", href: "#" },
-    author: {
-      name: "Michael Foster",
-      role: "Co-Founder / CTO",
-      href: "#",
-      imageUrl:
-        "https://images.unsplash.com/photo-1519244703995-f4e0f30006d5?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
-    },
+    icon: ClockIcon,
+    iconForeground: "text-teal-700",
+    iconBackground: "bg-teal-50",
   },
-  // More posts...
+  {
+    title: "Benefits",
+    href: "#",
+    icon: CheckBadgeIcon,
+    iconForeground: "text-purple-700",
+    iconBackground: "bg-purple-50",
+  },
+  {
+    title: "Schedule a one-on-one",
+    href: "#",
+    icon: UsersIcon,
+    iconForeground: "text-sky-700",
+    iconBackground: "bg-sky-50",
+  },
+  {
+    title: "Payroll",
+    href: "#",
+    icon: BanknotesIcon,
+    iconForeground: "text-yellow-700",
+    iconBackground: "bg-yellow-50",
+  },
+  {
+    title: "Submit an expense",
+    href: "#",
+    icon: ReceiptRefundIcon,
+    iconForeground: "text-rose-700",
+    iconBackground: "bg-rose-50",
+  },
+  {
+    title: "Training",
+    href: "#",
+    icon: AcademicCapIcon,
+    iconForeground: "text-indigo-700",
+    iconBackground: "bg-indigo-50",
+  },
 ];
+
+function classNames(...classes: string[]) {
+  return classes.filter(Boolean).join(" ");
+}
 
 export default function Example() {
   return (
-    <div className="bg-white py-24 sm:py-32">
-      <div className="mx-auto max-w-7xl px-6 lg:px-8">
-        <div className="mx-auto max-w-2xl lg:max-w-4xl">
-          <h2 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-            From the blog
-          </h2>
-          <p className="mt-2 text-lg leading-8 text-gray-600">
-            Learn how to grow your business with our expert advice.
-          </p>
-          <div className="mt-16 space-y-20 lg:mt-20 lg:space-y-20">
-            {posts.map((post) => (
-              <article
-                key={post.id}
-                className="relative isolate flex flex-col gap-8 lg:flex-row"
-              >
-                <div className="relative aspect-[16/9] sm:aspect-[2/1] lg:aspect-square lg:w-64 lg:shrink-0">
-                  <img
-                    src={post.imageUrl}
-                    alt=""
-                    className="absolute inset-0 h-full w-full rounded-2xl bg-gray-50 object-cover"
-                  />
-                  <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-gray-900/10" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-x-4 text-xs">
-                    <time dateTime={post.datetime} className="text-gray-500">
-                      {post.date}
-                    </time>
-                    <a
-                      href={post.category.href}
-                      className="relative z-10 rounded-full bg-gray-50 px-3 py-1.5 font-medium text-gray-600 hover:bg-gray-100"
-                    >
-                      {post.category.title}
-                    </a>
-                  </div>
-                  <div className="group relative max-w-xl">
-                    <h3 className="mt-3 text-lg font-semibold leading-6 text-gray-900 group-hover:text-gray-600">
-                      <a href={post.href}>
-                        <span className="absolute inset-0" />
-                        {post.title}
-                      </a>
-                    </h3>
-                    <p className="mt-5 text-sm leading-6 text-gray-600">
-                      {post.description}
-                    </p>
-                  </div>
-                  <div className="mt-6 flex border-t border-gray-900/5 pt-6">
-                    <div className="relative flex items-center gap-x-4">
-                      <img
-                        src={post.author.imageUrl}
-                        alt=""
-                        className="h-10 w-10 rounded-full bg-gray-50"
-                      />
-                      <div className="text-sm leading-6">
-                        <p className="font-semibold text-gray-900">
-                          <a href={post.author.href}>
-                            <span className="absolute inset-0" />
-                            {post.author.name}
-                          </a>
-                        </p>
-                        <p className="text-gray-600">{post.author.role}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </article>
-            ))}
+    <div className="divide-y divide-gray-200 overflow-hidden rounded-lg bg-gray-200 shadow sm:grid sm:grid-cols-2 sm:gap-px sm:divide-y-0">
+      {actions.map((action, actionIdx) => (
+        <div
+          key={action.title}
+          className={classNames(
+            actionIdx === 0
+              ? "rounded-tl-lg rounded-tr-lg sm:rounded-tr-none"
+              : "",
+            actionIdx === 1 ? "sm:rounded-tr-lg" : "",
+            actionIdx === actions.length - 2 ? "sm:rounded-bl-lg" : "",
+            actionIdx === actions.length - 1
+              ? "rounded-bl-lg rounded-br-lg sm:rounded-bl-none"
+              : "",
+            "group relative bg-white p-6 focus-within:ring-2 focus-within:ring-inset focus-within:ring-indigo-500"
+          )}
+        >
+          <div>
+            <span
+              className={classNames(
+                action.iconBackground,
+                action.iconForeground,
+                "inline-flex rounded-lg p-3 ring-4 ring-white"
+              )}
+            >
+              <action.icon className="h-6 w-6" aria-hidden="true" />
+            </span>
           </div>
+          <div className="mt-8">
+            <h3 className="text-base font-semibold leading-6 text-gray-900">
+              <a href={action.href} className="focus:outline-none">
+                {/* Extend touch target to entire panel */}
+                <span className="absolute inset-0" aria-hidden="true" />
+                {action.title}
+              </a>
+            </h3>
+            <p className="mt-2 text-sm text-gray-500">
+              Doloribus dolores nostrum quia qui natus officia quod et dolorem.
+              Sit repellendus qui ut at blanditiis et quo et molestiae.
+            </p>
+          </div>
+          <span
+            className="pointer-events-none absolute right-6 top-6 text-gray-300 group-hover:text-gray-400"
+            aria-hidden="true"
+          >
+            <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M20 4h1a1 1 0 00-1-1v1zm-1 12a1 1 0 102 0h-2zM8 3a1 1 0 000 2V3zM3.293 19.293a1 1 0 101.414 1.414l-1.414-1.414zM19 4v12h2V4h-2zm1-1H8v2h12V3zm-.707.293l-16 16 1.414 1.414 16-16-1.414-1.414z" />
+            </svg>
+          </span>
         </div>
-      </div>
+      ))}
     </div>
   );
 }

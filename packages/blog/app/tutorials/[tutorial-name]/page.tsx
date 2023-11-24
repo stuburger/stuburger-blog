@@ -3,6 +3,7 @@ import { allModules, allTutorials } from "contentlayer/generated";
 import { Metadata } from "next";
 import { Mdx } from "@/components/mdx-components";
 import { Article } from "@/components/article";
+// import Example from "@/components/example";
 
 interface PostProps {
   params: {
@@ -72,6 +73,7 @@ export default async function PostPage({ params }: PostProps) {
             slug={tut.slug}
           />
         ))}
+        {/* <Example /> */}
       </div>
     </>
   );

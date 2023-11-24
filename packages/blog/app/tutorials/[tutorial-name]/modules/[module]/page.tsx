@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 import { allModules } from "contentlayer/generated";
-
 import { Metadata } from "next";
 import { Mdx } from "@/components/mdx-components";
 
@@ -11,7 +10,7 @@ interface PostProps {
   };
 }
 
-async function getPostFromParams(params: PostProps["params"]) {
+function getPostFromParams(params: PostProps["params"]) {
   const slug = `${params["tutorial-name"]}/modules/${params.module}`;
 
   const post = allModules.find((post) => {
@@ -40,14 +39,14 @@ export async function generateMetadata({
   };
 }
 
-export async function generateStaticParams(): Promise<PostProps["params"][]> {
+export async function generateStaticParams(): Promise<any[]> {
   return allModules.map((post) => ({
     slug: post.slugAsParams.split("/"),
   }));
 }
 
 export default async function PostPage({ params }: PostProps) {
-  const post = await getPostFromParams(params);
+  const post = getPostFromParams(params);
 
   if (!post) {
     notFound();
